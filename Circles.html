@@ -1,0 +1,186 @@
+<HTML>
+	<HEAD>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<STYLE>
+			#controls {
+				position: absolute;
+				z-index: 1;
+				left: 0.5rem;
+				bottom: 0.5rem;
+			}
+			#controls button {
+				font-size: 2rem;
+			}
+			body {
+				--count: 10;
+				margin: 0;
+				padding: 0;
+				font-size: calc(25vw / var(--count));
+				overflow: hidden;
+				width: 100vw;
+				heigth: 100vh;
+			}       
+			@media (min-aspect-ratio: 2000/1732) {
+				body {
+					font-size: calc(28.8675vh / (var(--count) + 0.155));
+				}
+			}
+			.circle {
+				width: 4em;
+				height: 4em;
+				border-radius: 2em;
+				background: linear-gradient(135deg, #55f, #006);
+				display: flex;
+				position: absolute;
+			}
+			.circle::before {
+				top: 0.5em;
+				left: 0.5em;
+				width: 3em;
+				height: 3em;
+				border-radius: 1.5em;
+				background-color: #00f;
+				content: "";
+				position: absolute;
+			}
+			.circle[data-color="red"] {
+				background: linear-gradient(135deg, #f44, #a00);
+			}
+			.circle[data-color="red"]::before {
+				background-color: #f00;
+			}
+			.circle[data-color="green"] {
+				background: linear-gradient(135deg, #4f4, #0a0);
+			}
+			.circle[data-color="green"]::before {
+				background-color: #0f0;
+			}
+		</STYLE>
+		<SCRIPT>
+			const colors = ["red", "green", "blue"];
+			const allCircles = [];
+			function initOnce()
+			{
+				placeCircles(10);
+				randomizeCircles();
+			}
+			function placeCircles(n)
+			{
+				document.body.style.setProperty("--count", n);
+				allCircles.forEach(onThisRow => {
+					onThisRow.forEach(circle => circle.remove());
+				});
+				allCircles.length = 0;
+				const rowOffset = 2 * Math.sqrt(3);
+				for (let row = 0; row < n; row++)
+				{
+					const onThisRow = [];
+					allCircles[row] = onThisRow;
+					const topRow = row == 0;
+					for (let column = 0; column < n - row; column++) 
+					{
+						const circle = makeCircle();
+						circle.style.top = (row*rowOffset) + "em";
+						circle.style.left = (2*row + 4 * column) + "em";
+						if (topRow)
+							circle.addEventListener("click", circleClicked);
+						onThisRow.push(circle);
+					}
+				}
+			}
+			function circleClicked(event)
+			{
+				const circle = event.target;
+				const currentColor = circle.dataset["color"];
+				const currentIndex = colors.indexOf(currentColor);
+				const newIndex = (currentIndex + 1) % colors.length;
+				const newColor = colors[newIndex];
+				circle.dataset["color"] = newColor;
+				finishCircleColors();
+			}
+			function randomizeCircles()
+			{
+				allCircles[0].forEach(function(circle) {
+					circle.dataset["color"] = randomColor();
+				});
+				finishCircleColors();
+			}
+			function finishCircleColors()
+			{
+				let onPreviousRow = false;
+				allCircles.forEach(function(onCurrentRow)
+				{
+					if (onPreviousRow)
+					{
+						onCurrentRow.forEach(function(circle, column)
+						{
+							const aboveLeft = onPreviousRow[column].dataset["color"];
+							const aboveRight = onPreviousRow[column+1].dataset["color"];
+							const newColor = addColors(aboveLeft, aboveRight);
+							circle.dataset["color"] = newColor;
+						});
+					}
+					onPreviousRow = onCurrentRow;
+				});
+			}
+			function addColors(a, b)
+			{
+				if (a == b)
+					return a;
+				else
+					return colors[3 - colors.indexOf(a) - colors.indexOf(b)];
+			}
+			function randomColor()
+			{
+				return colors[Math.floor(Math.random()*colors.length)];
+			}
+			function makeCircle()
+			{
+				const div = document.createElement("div");
+				div.className = "circle";
+				div.dataset["color"] = randomColor();
+				document.body.appendChild(div);
+				return div;
+			}
+			function addCircle()
+			{
+				const originalTopRow = allCircles[0];
+				placeCircles(allCircles.length + 1);
+				const newTopRow = allCircles[0];
+				originalTopRow.forEach(function(originalCircle, column)
+				{
+					newTopRow[column].dataset.color = originalCircle.dataset.color;
+				});
+				newTopRow[originalTopRow.length].dataset.color = randomColor();
+				finishCircleColors();
+			}
+			function removeCircle()
+			{
+				const newLength = allCircles.length - 1;
+				if (newLength > 0)
+				{
+					const originalTopRow = allCircles[0];
+					placeCircles(newLength);
+					const newTopRow = allCircles[0];
+					newTopRow.forEach(function(newCircle, column)
+					{
+						newCircle.dataset.color = originalTopRow[column].dataset.color;
+					});
+				}
+				finishCircleColors();
+			}
+		</SCRIPT>
+	</HEAD>
+	<BODY ONLOAD="initOnce()">
+	<DIV ID="controls">
+		<BUTTON ONCLICK="addCircle()">+</BUTTON>
+		<BUTTON ONCLICK="removeCircle()">-</BUTTON>
+		<BUTTON ONCLICK="randomizeCircles()">⟲</BUTTON>
+	</DIV>
+	<!--
+		<DIV CLASS="circle"></DIV>
+		<DIV CLASS="circle" DATA-COLOR="red" STYLE="left: 4em;"></DIV>
+		<DIV CLASS="circle" DATA-COLOR="green" STYLE="left: 2em; top: 3.4641em;"></DIV>
+		-->
+	</BODY>
+</HTML>

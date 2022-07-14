@@ -1,0 +1,190 @@
+<HTML>
+  <HEAD>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <TITLE>Fill the Triangle</TITLE>
+    <SCRIPT>
+      var canvas;
+      var context;
+      function initOnce()
+      {
+        canvas = document.getElementById("canvas");
+        context = canvas.getContext("2d");
+        doOneStep();
+      }
+      function areaOfTriangle(a, b, c)
+      { // Formula for the area of a triangle from 3 ponts:  
+        // https://www.mathopenref.com/coordtrianglearea.html
+        return Math.abs(a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) / 2;
+      }
+      var triangles = [];
+      function resetDrawing()
+      {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.strokeStyle = "#000000";
+        context.fillStyle = "#EEEEEE";
+        context.lineWidth = 3;
+        context.lineCap = "butt";
+        var possiblePoints = [];
+        for (var i = 0; i < 10; i++)
+        {
+          possiblePoints.push({x: Math.random() * canvas.width, y: Math.random() * canvas.height});
+        }
+        var largestArea = -1;
+        var initialTriangle;
+        for (var i = 0; i < possiblePoints.length - 2; i++)
+          for (var j = i+1; j < possiblePoints.length - 1; j++)
+            for (var k = j+1; k < possiblePoints.length; k++)
+            { // Formula for the area of a triangle from 3 ponts:  
+              // https://www.mathopenref.com/coordtrianglearea.html
+              const a = possiblePoints[i];
+              const b = possiblePoints[j];
+              const c = possiblePoints[k];
+              const area = areaOfTriangle(a, b, c);
+              if (area > largestArea)
+              {
+                largestArea = area;
+                initialTriangle = [a, b, c];
+              } 
+            }  
+        context.beginPath();
+        context.moveTo(initialTriangle[0].x, initialTriangle[0].y);
+        context.lineTo(initialTriangle[1].x, initialTriangle[1].y);
+        context.lineTo(initialTriangle[2].x, initialTriangle[2].y);
+        context.closePath();
+        context.fill();
+        context.stroke();
+        triangles = [initialTriangle];
+      }
+      function length(a, b)
+      {
+        var dx = a.x - b.x;
+        var dy = a.y - b.y;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+      const minPadding = 5;
+      function tooThin(triangle)
+      {
+        const longestSide = Math.max(length(triangle[0], triangle[1]),
+                                     length(triangle[1], triangle[2]),
+                                     length(triangle[2], triangle[0]));
+        const area = areaOfTriangle(triangle[0], triangle[1], triangle[2]);
+        const height = area / longestSide;
+        return height < minPadding * 2;
+      }
+      function doTriangle(triangle)
+      {
+        // Shared1 is a point shared by the original triangle and both of the new ones.
+        var shared1;
+        // Split1 is a point shared by the original triange and one of the new triangles.
+        var split1;
+        // Split2 is a point shared by the original triange and the other new triangle.
+        var split2;
+
+        const lengths = 
+          [length(triangle[1], triangle[2]), 
+           length(triangle[0], triangle[2]), 
+           length(triangle[0], triangle[1])];
+        const randomPosition = Math.random() * (lengths[0] + lengths[1] + lengths[2]); 
+        if (randomPosition < lengths[0])
+        { // Split the segment opposite the first point.
+          shared1 = triangle[0];
+          split1 = triangle[1];
+          split2 = triangle[2];
+        }
+        else if (randomPosition < lengths[0] + lengths[1])
+        { // Split the segment opposite the second point.
+          split1 = triangle[0];
+          shared1 = triangle[1];
+          split2 = triangle[2];
+        }
+        else
+        { // Split the segment opposite the third point.
+          split1 = triangle[0];
+          split2 = triangle[1];
+          shared1 = triangle[2];
+        }
+        var lengthOfBrokenSegment = length(split1, split2);
+        var distanceAvailable = lengthOfBrokenSegment - minPadding * 2;
+        if (tooThin(triangle) || (distanceAvailable < 0))
+          return false;
+        var distanceFromPadding = (Math.random() + Math.random() + Math.random()) / 3 * distanceAvailable;
+        const distanceFromSplit1 = distanceFromPadding + minPadding;
+        const ratio = distanceFromSplit1 / lengthOfBrokenSegment;
+        // Shared2 is a vertex of both new triangles, but not the original.
+        const shared2 = {x: (split2.x - split1.x) * ratio + split1.x,
+                         y: (split2.y - split1.y) * ratio + split1.y};
+        triangles.push([shared1, shared2, split1], [shared1, shared2, split2]);
+        //context.strokeStyle = getNextColor();
+        const color = getNextColor();
+        context.strokeStyle = color;
+        console.info(color + " " + colorList);
+        context.lineWidth = 1;
+        context.lineCap = "butt";
+        context.beginPath();
+        context.moveTo(shared1.x, shared1.y);
+        context.lineTo(shared2.x, shared2.y);
+        context.stroke();
+        return true;
+      }
+      var colorList = ["#FF0000", "#00FF00", "#0000FF", "black"];
+      function getNextColor()
+      {
+        const result = colorList.shift();
+        colorList.push(result);
+        return result;
+      }
+      function doOneTriangle()
+      {
+        while (true)
+        {
+          if (triangles.length == 0)
+            return false;
+          var triangle; 
+          if (document.getElementById("depth_first_search").checked)
+            triangle = triangles.pop();
+          else
+            triangle = triangles.shift();
+          if (doTriangle(triangle))
+            return true;
+        }
+      }
+      function doOneStep()
+      {
+        if (!doOneTriangle())
+          resetDrawing();
+        // How to find the checked radio button: https://stackoverflow.com/a/15839451
+        const timeout = document.querySelector('input[name="speed"]:checked').value; 
+        setTimeout(() => { doOneStep(); }, timeout);   
+      }
+      function resizeButtonClick()
+      {
+        const currentHeight = document.getElementById("everything").offsetHeight;
+        const desiredHeight = innerHeight;
+        const desiredAddition = desiredHeight - currentHeight;
+        const suggestedCanvasHeight = Math.max(100, desiredAddition + canvas.offsetHeight);
+        canvas.style.height = suggestedCanvasHeight + "px";
+        resetDrawing();
+      }
+    </SCRIPT>
+  </HEAD>
+  <BODY onload="initOnce()">
+    <DIV ID="everything">
+      <H1>Fill the Triangle</H1>
+      <CANVAS STYLE="height: 20em; width: 100%" ID="canvas"></CANVAS>
+      <DIV STYLE="border: 1px inset; margin: 1px 0px">
+        <INPUT TYPE="radio" NAME="search_type" VALUE="pop" CHECKED ID="depth_first_search">Depth First Search
+        &nbsp; <INPUT TYPE="radio" NAME="search_type" VALUE="shift">Breadth First Search
+      </DIV>
+      <DIV STYLE="border: 1px inset; margin: 1px 0px">
+        <INPUT TYPE="radio" NAME="speed" VALUE="1000">Slower
+        &nbsp; <INPUT TYPE="radio" NAME="speed" VALUE="750">Slow
+        &nbsp; <INPUT TYPE="radio" NAME="speed" VALUE="500" CHECKED>Normal
+        &nbsp; <INPUT TYPE="radio" NAME="speed" VALUE="250">Fast
+        &nbsp; <INPUT TYPE="radio" NAME="speed" VALUE="100">Faster
+      </DIV>
+      <BUTTON ONCLICK="resizeButtonClick()">Resize</BUTTON>
+    </BODY>
+  </DIV>
+</HTML>

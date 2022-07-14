@@ -1,0 +1,214 @@
+<HTML>
+	<HEAD>
+		<TITLE>Sierpiński Triangle</TITLE>	
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<STYLE>
+			body {
+				padding: 0;
+				margin: 0;
+				position: relative;
+				}
+			#canvas {
+				position: absolute;
+				left: 0;
+				right: 0;
+				width: 100vw;
+				height: 100vh;
+			}
+			#input_container {
+				position: relative;
+				z-index: 2;
+				width: 100%;
+			}
+			#input_container td {
+				text-align: center;
+			}
+			#sleep_range, #spawn_range {
+				width: 45vw;
+				margin: 0;
+			}
+			#sleep_time_div, #spawn_div  {
+				font-size: 200%;
+				text-shadow: 2px 2px 8px #FFFFFF;
+				text-align: center;
+			}
+		</STYLE>
+		<SCRIPT>
+			var canvas;
+			var context;
+			var sleepTimeDiv;
+			var sleepRange;
+			var spawnRange;
+			var spawnDiv;
+			var spawnChance = 0;
+			const sleepTimes = [10, 20, 50, 100, 150, 250, 500, 1000, 1500, 2000, 3000, 4000, 6000];
+			function initOnce()
+			{
+				canvas = document.getElementById("canvas");
+				context = canvas.getContext("2d");
+				
+				sleepRange = document.getElementById("sleep_range");
+				sleepTimeDiv = document.getElementById("sleep_time_div");
+				sleepRange.max = sleepTimes.length - 1;
+				sleepRange.value = 5;
+				sleepTimeChanged();
+				
+				spawnRange = document.getElementById("spawn_range");
+				spawnDiv =  document.getElementById("spawn_div");
+				spawnChanged();
+
+				startTriangle();
+			}
+			function areaOfTriangle(a, b, c)
+			{	// Formula for the area of a triangle from 3 ponts:  
+				// https://www.mathopenref.com/coordtrianglearea.html
+				return Math.abs(a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) / 2;
+			}
+			function getColors()
+			{
+				c1 = "rgb(" + Math.random()*50 + "%, " + Math.random()*50 + "%, " + Math.random()*50 + "%)";
+				c2 = "rgb(" + (Math.random()*50 + 50) + "%, " + (Math.random()*50 + 50) + "%, " + (Math.random()*50 + 50) + "%)";
+				if (Math.random() < 0.5)
+					return {background: c1, foreground: c2};
+				else
+					return {background: c2, foreground: c1};
+			}
+			function makeTrianglePath(triangle)
+			{
+				context.beginPath()
+				context.moveTo(triangle[0].x, triangle[0].y);
+				context.lineTo(triangle[1].x, triangle[1].y);
+				context.lineTo(triangle[2].x, triangle[2].y);
+				context.closePath();
+			}
+			function strokeTriangle(triangle)
+			{
+				makeTrianglePath(triangle);
+				context.stroke();
+			}
+			async function startTriangle()
+			{
+				while (true)
+				{
+
+					// Make the size of the bitmap match the size of the element.
+					canvas.width = canvas.offsetWidth;
+					canvas.height = canvas.offsetHeight;
+					const colors = getColors();
+					context.strokeStyle = colors.foreground;
+					context.fillStyle = colors.background;
+					context.fillRect(0, 0, canvas.width, canvas.height);
+					const possiblePoints = [];
+					for (var i = 0; i < 12; i++)
+					{
+						possiblePoints.push({x: Math.random() * canvas.width, y: Math.random() * canvas.height});
+					}
+					var largestArea = -1;
+					var initialTriangle;
+					for (var i = 0; i < possiblePoints.length - 2; i++)
+						for (var j = i+1; j < possiblePoints.length - 1; j++)
+							for (var k = j+1; k < possiblePoints.length; k++)
+							{	// Formula for the area of a triangle from 3 ponts:  
+								// https://www.mathopenref.com/coordtrianglearea.html
+								const a = possiblePoints[i];
+								const b = possiblePoints[j];
+								const c = possiblePoints[k];
+								const area = areaOfTriangle(a, b, c);
+								if (area > largestArea)
+								{
+									largestArea = area;
+									initialTriangle = [a, b, c];
+								} 
+							}
+					context.lineJoin = "bevel";
+					context.lineWidth = 1;
+					await breakTriangle(initialTriangle, true, Math.floor(Math.log2(Math.min(canvas.width, canvas.height)/5)));
+					strokeTriangle(initialTriangle);
+					await animationPause();
+				}
+			}
+			function midPoint(a, b)
+			{
+				return {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+			}
+			async function breakTriangle(triangle, first, remainingDepth)
+			{
+				remainingDepth -= 1;
+				if (remainingDepth < 0)
+					// TODO We should compare this to the size of the triangle.
+					// See the previous work on the perpendicular bisector.
+					return [];
+				const a = triangle[0];
+				const b = triangle[1];
+				const c = triangle[2];
+				const a1 = midPoint(b, c);
+				const b1 = midPoint(a, c);
+				const c1 = midPoint(a, b);
+				const firstIndex = (first||(Math.random()<spawnChance))?Math.floor(Math.random()*3):-1;
+				const triangles = [[a1, b1, c1]].concat(
+					await breakTriangle([a1, b1, c], firstIndex==0, remainingDepth),
+					await breakTriangle([a1, b, c1], firstIndex==1, remainingDepth),
+					await breakTriangle([a, b1, c1], firstIndex==2, remainingDepth));
+				if (first)
+				{
+					triangles.forEach(strokeTriangle);
+					await animationPause(triangles.length);
+					return [];
+				}
+				else
+					return triangles;
+			}
+			var currentResolve;
+			function sleep(ms) 
+			{	// https://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep
+				return new Promise(resolve => {currentResolve = resolve; setTimeout(resolve, ms);});
+			}
+			function getSleepTime()
+			{
+				return sleepTimes[sleepRange.value];
+			}
+			function animationPause(count = 1)
+			{
+				const ratio = 1 + Math.log(count) / Math.log(3) / 2;
+				//console.log("animationPause("+count+") => "+getSleepTime()+"*"+ratio+" => sleep("+(getSleepTime() * ratio)+")");
+				return sleep(getSleepTime() * ratio);
+			}
+			function sleepTimeChanged()
+			{
+				if (currentResolve)
+					currentResolve();
+				const ms = getSleepTime();
+				if (ms <= 1000)
+					sleepTimeDiv.innerText = ms + "ms";
+				else
+					sleepTimeDiv.innerText = (ms / 1000) + "s";
+			}
+			function spawnChanged()
+			{
+				spawnChance = spawnRange.value / spawnRange.max;
+				spawnDiv.innerText = (spawnRange.value * 100 / spawnRange.max) + "%";
+			}
+		</SCRIPT>
+	</HEAD>
+	<BODY ONLOAD="initOnce()">
+		<CANVAS ID="canvas"></CANVAS>
+		<TABLE ID="input_container">
+			<TR>
+				<TD>
+					<INPUT TYPE="range" ID="sleep_range" ONINPUT="sleepTimeChanged()" MIN="0"></INPUT>
+				</TD>
+				<TD>
+					<INPUT TYPE="range" ID="spawn_range" ONINPUT="spawnChanged()" MIN="0" MAX="100" VALUE="10"></INPUT>
+				</TD>
+			</TR>
+			<TR>
+				<TD>
+					<DIV ID="sleep_time_div"></DIV>
+				</TD>
+				<TD>
+					<DIV ID="spawn_div"></DIV>
+				</TD>
+			</TR>
+		</TABLE>
+	</BODY>
+</HTML>

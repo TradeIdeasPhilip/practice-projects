@@ -1,0 +1,232 @@
+﻿<HTML>
+  <HEAD>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <TITLE>N Queens</TITLE>
+    <style>
+	.blackBackground {
+	  background-color: black;
+	  color: yellow;
+	}
+	.whiteBackground {
+	  background-color: white;
+	  color: blue;
+	}
+	.blackAvailable {
+	  background-color: blue;
+	  color: yellow;
+	}
+	.whiteAvailable {
+	  background-color: yellow;
+	  color: blue;
+	}
+    </style>
+    <SCRIPT>
+	  
+var solveButton;
+var output;
+
+function mainInit()
+{
+    solveButton = document.getElementById("solveButton");
+    output = document.getElementById("output");
+    displayResult(8, [0, 4, 7, 5, 2, 6, 1, 3]);
+}
+
+function gridCell(className, inside)
+{
+    var result = '<SPAN CLASS="';
+    result += className;
+    result += '">&nbsp;';
+    result += inside;
+    result += "&nbsp;</SPAN>";
+    return result;
+}
+function fixedGridCell(blackBackground, inside)
+{
+    return gridCell(blackBackground?"blackBackground":"whiteBackground",
+		    inside);
+}
+function availableGridCell(blackBackground, recentlyWasQueen)
+{
+    return gridCell(blackBackground?"blackAvailable":"whiteAvailable", 
+	                recentlyWasQueen?"Q":"?");
+}
+
+function objectIsEmpty(obj)
+{	// https://stackoverflow.com/questions/679915/how-do-i-test-for-an-empty-javascript-object
+	return Object.entries(obj).length === 0 && obj.constructor === Object;
+}
+
+var deepestRecent = [];
+
+function isPrefixOf(prefix, whole)
+{
+  if (prefix.length > whole.length)
+	return false;
+  for (var i = 0; i < prefix.length; i++)
+    if (prefix[i] != whole[i])
+	  return false;
+  return true;
+}
+
+function displayResult(size, result)
+{
+    var asHtml = "";
+    if (!result)
+	{
+	  asHtml = '<FONT COLOR="red">No Solution</FONT>';
+	  deepestRecent = [];
+	}
+    else
+    {
+	    var recent;
+		if (isPrefixOf(result, deepestRecent))
+			recent = deepestRecent;
+		else
+		{
+		    deepestRecent = result;
+			recent = [];
+		}
+		for (var row = 0; row < result.length; row++)
+		{
+			const queenColumn = result[row];
+			asHtml += "<DIV>";
+			for (var column = 0; column < size; column++)
+			{
+			const blackBackground = ((row + column) % 2) == 0;
+			const text = (column == queenColumn)?"<B>Q</B>":"&nbsp;";
+			const cell = fixedGridCell(blackBackground, text);
+			asHtml += cell;
+			}
+			asHtml += "</DIV>";			
+		}
+		for (var row = result.length; row < size; row++)
+		{
+			const available = getAvailable(result, size, row);
+			const rowCompletelyBlocked = objectIsEmpty(available);
+			asHtml += "<DIV>";
+			var availableCount = 0;
+			for (var column = 0; column < size; column++)
+			{
+				const blackBackground = ((row + column) % 2) == 0;
+				var cell;
+				if (rowCompletelyBlocked)
+					cell = fixedGridCell(blackBackground, "•");
+				else if (available[column] === undefined)
+					// This cell is blocked.
+					cell = fixedGridCell(blackBackground, "&nbsp;");
+				else
+				{
+					const recentlyWasQueen = recent[row] == column;
+					cell = availableGridCell(blackBackground, recentlyWasQueen);
+					availableCount++;
+				}
+				asHtml += cell;
+			}
+			asHtml += "&nbsp;";
+			if (availableCount)
+			    asHtml += availableCount;
+			else
+			    asHtml += '<FONT COLOR="red">X</FONT>';
+			asHtml += "</DIV>";
+		}
+		output.innerHTML = asHtml;
+	}
+}
+
+// https://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep/39914235#39914235
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+function getPeriodMs() {
+    return parseInt(document.querySelector('input[name="speed"]:checked').value, 10);
+}
+
+// initialState is the list of known moves so far.
+// size is the number of rows / columns / queens expected when we are done.
+// onRow says which row we want to add a queen to.
+// The result will be a set including every column where we could add a row.
+// Precondition:  onRow must be >= initialState.
+function getAvailable(initialState, size, onRow)
+{
+	const available = {};
+	for (var i = 0; i < size; i++)
+    {
+		available[i] = i;
+    }
+    for (var row = 0; row < initialState.length; row++)
+    {
+		delete available[initialState[row]];
+	    const offset = onRow - row;
+		delete available[initialState[row] - offset];
+		delete available[initialState[row] + offset];		  
+    }
+	return available;
+}
+
+// Returns false if we couldn't find a solution.
+// Otherwise returns a list of moves that will solve the problem.
+async function solve(size, initialState = [])
+{
+    displayResult(size, initialState);
+    await sleep(getPeriodMs());
+    if (size == initialState.length)
+	return initialState;
+	const available = getAvailable(initialState, size, initialState.length)
+    for (var columnName in available)
+    {
+		const column = available[columnName];
+		const tryThis = initialState.slice(0);
+		tryThis.push(column);
+		const result = await solve(size, tryThis);
+		if (result)
+			return result;	
+        // Show the backtracking.			
+		displayResult(size, initialState);
+		await sleep(getPeriodMs());
+    }
+    return false;
+}
+async function solveAll(size)
+{
+    deepestRecent = [];
+    solveButton.disabled = true;
+    result = await solve(size);
+    displayResult(size, result);
+    solveButton.disabled = false;
+}
+function onButtonClick()
+{
+    const size = parseInt(document.getElementById("n").value, 10);
+    solveAll(size);
+}
+  </SCRIPT>
+  </HEAD>
+  <BODY ONLOAD="mainInit()">
+    <H1>N Queens</H1>
+	<DIV>
+	  N=
+	  <INPUT NAME="n" ID="n" VALUE="8" SIZE="3">
+	  <BUTTON ONCLICK="onButtonClick()" ID="solveButton">Solve</BUTTON>
+	</DIV>
+	<DIV ID="output" STYLE="font-family:  monospace">
+    </DIV>
+    <DIV STYLE="border: 1px inset; margin: 1px 0px">
+        <INPUT TYPE="radio" NAME="speed" VALUE="2000">Slower
+        &nbsp; <INPUT TYPE="radio" NAME="speed" VALUE="946">Slow
+        &nbsp; <INPUT TYPE="radio" NAME="speed" VALUE="477" CHECKED>Normal
+        &nbsp; <INPUT TYPE="radio" NAME="speed" VALUE="211">Fast
+        &nbsp; <INPUT TYPE="radio" NAME="speed" VALUE="100">Faster
+      </DIV>
+    <BR>
+    <BR>
+	<DIV>Legend</DIV>
+	<DIV STYLE="font-family:  monospace">
+		<DIV><SCRIPT>document.write(fixedGridCell(true, "Q")+fixedGridCell(false, "Q"));</SCRIPT>&nbsp;A queen is here.</DIV>
+		<DIV><SCRIPT>document.write(fixedGridCell(false, "&nbsp;")+fixedGridCell(true, "&nbsp;"));</SCRIPT>&nbsp;Nothing is allowed here.</DIV>
+		<DIV><SCRIPT>document.write(fixedGridCell(true, "•")+fixedGridCell(false, "•"));</SCRIPT>&nbsp;This entire row is blocked.</DIV>    
+		<DIV><SCRIPT>document.write(availableGridCell(false, false)+availableGridCell(true, false));</SCRIPT>&nbsp;You might be able to put a queen here.</DIV>
+		<DIV><SCRIPT>document.write(availableGridCell(true, true)+availableGridCell(false, true));</SCRIPT>&nbsp;You recently tried a queen here.</DIV>
+	</DIV>
+  </BODY>
+</HTML>

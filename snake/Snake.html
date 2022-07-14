@@ -1,0 +1,55 @@
+<HTML>
+	<HEAD>
+		<SCRIPT SRC="Snake.js"></SCRIPT>
+		<link rel="stylesheet" type="text/css" href="Snake.css">
+	</HEAD>
+	<BODY ONLOAD="initOnce()">
+		<DIV ID="board">Initializing...</DIV>
+		<DIV>
+			<BUTTON ID="start-button" ONCLICK="onStart(this)">Start</BUTTON>
+			&nbsp;&nbsp;&nbsp;&nbsp;Length:&nbsp; <SPAN ID="length"></SPAN>
+		</DIV>
+		<DIV>Q to start, 
+		  <SPAN ID="left_display">A to the left</SPAN>, 
+		  <SPAN ID="up_display">W up</SPAN>, 
+		  <SPAN ID="right_display">D to the right</SPAN>, 
+		  <SPAN ID="down_display">S down</SPAN>.</DIV>
+		<DIV>
+			Veritical: <SPAN CLASS="std-size" DATA-SHAPE="vertical"></SPAN>
+		</DIV>
+		<DIV>
+			Horizontal: <SPAN CLASS="std-size" DATA-SHAPE="horizontal"></SPAN>
+		</DIV>
+		<DIV>
+			Top-Left: <SPAN CLASS="std-size" DATA-SHAPE="top-left"></SPAN>
+		</DIV>
+		<DIV>
+			Bottom-Right: <SPAN CLASS="std-size" DATA-SHAPE="bottom-right"></SPAN>
+		</DIV>
+		<DIV>
+			End-Cap-Left: <SPAN CLASS="std-size" DATA-SHAPE="end-cap-left"></SPAN>
+		</DIV>
+		<DIV>
+			End-Cap-Right: <SPAN CLASS="std-size" DATA-SHAPE="end-cap-right"></SPAN>
+		</DIV>
+		<DIV>
+			End-Cap-Top: <SPAN CLASS="std-size" DATA-SHAPE="end-cap-top"></SPAN>
+		</DIV>
+		<DIV>
+			End-Cap-Bottom: <SPAN CLASS="std-size" DATA-SHAPE="end-cap-bottom"></SPAN>
+		</DIV>
+		<DIV>
+			Target: <SPAN CLASS="std-size" DATA-SHAPE="target"></SPAN>
+		</DIV>
+		<HR>
+		<DIV><SPAN CLASS="std-size" DATA-SHAPE="top-left"></SPAN><SPAN CLASS="std-size" DATA-SHAPE="horizontal"></SPAN><SPAN CLASS="std-size" DATA-SHAPE="top-right"></SPAN></DIV>
+		<DIV><SPAN CLASS="std-size" DATA-SHAPE="vertical"></SPAN><SPAN CLASS="std-size"></SPAN><SPAN CLASS="std-size" DATA-SHAPE="vertical"></SPAN></DIV>
+		<DIV><SPAN CLASS="std-size" DATA-SHAPE="bottom-left"></SPAN><SPAN CLASS="std-size" DATA-SHAPE="horizontal"></SPAN><SPAN CLASS="std-size" DATA-SHAPE="bottom-right"></SPAN></DIV>
+		<HR>
+		<DIV><SPAN CLASS="std-size" DATA-SHAPE="end-cap-left"></SPAN><SPAN CLASS="std-size" DATA-SHAPE="horizontal"></SPAN><SPAN CLASS="std-size" DATA-SHAPE="end-cap-right"></SPAN></DIV>
+		<HR>
+		<DIV><SPAN CLASS="std-size" DATA-SHAPE="end-cap-top"></SPAN></DIV>
+		<DIV><SPAN CLASS="std-size" DATA-SHAPE="vertical"></SPAN></DIV>
+		<DIV><SPAN CLASS="std-size" DATA-SHAPE="end-cap-bottom"></SPAN></DIV>
+	</BODY>
+</HTML>

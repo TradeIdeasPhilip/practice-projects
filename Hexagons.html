@@ -1,0 +1,319 @@
+<HTML>
+	<HEAD>
+		<TITLE>Hexagons</TITLE>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
+		<STYLE>
+			body {
+				margin: 0;
+				padding: 0;
+				font-family: 'Roboto', sans-serif;
+				font-size: 200%;
+				overflow: hidden;
+				height: 100vh;
+				width: 100vw;
+			}
+			#canvas {
+				height: 100vh;
+				width: 100vw;
+			}
+			#main_control {
+				position: absolute;
+				top: 0.25em;
+				left: 0.25em;
+				right: 0.25em;
+				text-align: center;
+			}
+			.menu_item {
+				text-shadow: 2px 2px 4px #FFFFFF;
+				text-align: center;
+			}
+			#main_control input[type="range"] {
+				width: 95%;
+			}
+			#color_div {
+				display: flex;
+				justify-content: space-evenly;
+			}
+			#color_div div {
+				padding-right: 0.2em;
+				border-radius: 0.3em;
+			}
+			#color_div button {
+				font-family: 'Roboto', sans-serif;
+				font-size: 100%;
+			}
+			#color_d_r {
+				background-color: #F00;
+				color: white;
+			}
+			#color_d_g {
+				background-color: #0F0;
+				color: white;
+			}
+			#color_d_b {
+				background-color: #00F;
+				color: white;
+			}
+			#color_d_rgb {
+				background-color: #000;
+				color: white;
+			}
+		</STYLE>
+		<SCRIPT>
+			var canvas;
+			var context;
+			function initOnce()
+			{
+				canvas = document.getElementById("canvas");
+				context = canvas.getContext("2d");
+				speedChanged();
+				borderWidthChanged();
+				document.querySelector("input[name=color][checked]").click();
+				sizeChanged();
+				redrawSoon();
+				backgroundUpdate();
+			}
+			var redrawPending = false;
+			async function redrawFinally()
+			{
+				redrawPending = false;
+				const multiplier = devicePixelRatio;
+				canvas.width = canvas.offsetWidth * multiplier;
+				canvas.height = canvas.offsetHeight * multiplier;
+				fillAll();
+			}
+			function redrawSoon()
+			{
+				if (!redrawPending)
+				{
+					redrawPending = true;
+					// TODO Something strange happening here.  It should schedule the async job and immediately return.  but it seems to be calling the async function synchronously.
+					redrawFinally();
+				}
+			}
+			function linearPoint(base, direction, ratio)
+			{
+				const result = {};
+				result.x = base.x + ratio * (direction.x - base.x);
+				result.y = base.y + ratio * (direction.y - base.y);
+				return result;
+			}
+			var sideLength;
+			var maxError = 0.1;
+			function getAllHexagons()
+			{
+				const hexagonWidth = 2 * sideLength;
+				const hexagonXFrequency = 3 * sideLength;
+				const hexagonHeight = Math.sqrt(3) * sideLength;
+				const hexagonHalfHeight = hexagonHeight / 2;
+				const hexagonYFrequency = hexagonHalfHeight;
+				const firstRowCount = Math.ceil(canvas.width / hexagonXFrequency) + 1;
+				const secondRowCount = firstRowCount - 1;
+				const numberOfRows = Math.ceil(canvas.height / hexagonYFrequency) + 1;
+				const result = [];
+				for (var rowNumber = 0; rowNumber < numberOfRows; rowNumber++)
+				{
+					const centerY = rowNumber * hexagonYFrequency;
+					const topY = centerY - hexagonHalfHeight;
+					const bottomY = centerY + hexagonHalfHeight;
+					const evenRow = (rowNumber%2)==0;
+					const xOffset = evenRow?0:(hexagonXFrequency/2);
+					const numberOfColumns = evenRow?firstRowCount:secondRowCount;
+					for (var columnNumber = 0; columnNumber < numberOfColumns; columnNumber++)
+					{
+						const centerX = xOffset + columnNumber * hexagonXFrequency;
+						const farLeftX = centerX - sideLength;
+						const leftX = centerX - sideLength / 2;
+						const rightX = leftX + sideLength;
+						const farRightX = centerX + sideLength;
+						const third = rowNumber % 3;
+						const corners = [{x: farRightX, y: centerY}, {x: rightX, y: topY}, {x: leftX, y: topY}, {x: farLeftX, y: centerY}, {x: leftX, y: bottomY}, {x: rightX, y: bottomY}];
+						const hexagon = { row: rowNumber, column: columnNumber, center: {x: centerX, y: centerY}, corners: corners, third: third };
+						result.push(hexagon);
+					}
+				}
+				return result;				
+			}
+			var randomColor;
+			function randomColorRGB(third)
+			{
+				const range = 40;
+				const jump = 100 - range;
+				var red = Math.random() * range;
+				var green = Math.random() * range;
+				var blue = Math.random() * range;
+				switch (third)
+				{
+					case 0: red += jump; break;
+					case 1: green += jump; break;
+					case 2: blue += jump; break;
+				}
+				const result = "rgb(" + red + "%, " + green + "%, " + blue + "%)"; 
+				//console.log(third + ":  " + result);
+				return result;
+			}
+			function randomColorBWMix(third, mainColor)
+			{
+				const colorParts = {main: mainColor, white: [100, 100, 100], black: [0, 0, 0]};
+				const range = 60;
+				const jump = 100 - range;
+				const percent = {};
+				for (const key in colorParts)
+					percent[key] = Math.random() * range;
+				percent[Object.keys(colorParts)[third]] += jump;
+				var total = 0;
+				const finalParts = [0, 0, 0];
+				for (const key in colorParts)
+				{
+					const currentPercent = percent[key];
+					total += currentPercent;
+					const currentParts = colorParts[key];
+					for (const index in finalParts)
+						finalParts[index] += currentParts[index] * currentPercent;
+				}
+				for (const index in finalParts)
+					finalParts[index] /= total;
+				const result = "rgb(" + finalParts[0] + "%, " + finalParts[1] + "%, " + finalParts[2] + "%)"; 
+				//console.log(third + ":  " + result);
+				return result;
+			}
+			function polygonPath(points)
+			{
+				context.beginPath();
+				for (var i = 0; i < points.length; i++)
+				{
+					const point = points[i];
+					if (i == 0)
+						context.moveTo(point.x, point.y);
+					else
+						context.lineTo(point.x, point.y);
+				}
+				context.closePath();
+			}
+			var borderRatio;
+			function fillHexagon(hexagon)
+			{
+				polygonPath(hexagon.corners);
+				context.fillStyle = randomColor(hexagon.third);
+				context.fill();
+				const borderColors = ["rgba(0,0,0,0.2)", "rgba(255,255,255,0.2)", "rgba(255,255,255,0.5)", "rgba(255,255,255,0.2)", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.5)"];
+				for (var firstCornerIndex = 0; firstCornerIndex < 6; firstCornerIndex++)
+				{
+					const nextCornerIndex = (firstCornerIndex + 1) % 6;
+					const oppositeFirstIndex = (firstCornerIndex + 3) % 6;
+					const oppositeNextIndex = (nextCornerIndex + 3) % 6;
+					const firstCorner = hexagon.corners[firstCornerIndex];
+					const nextCorner = hexagon.corners[nextCornerIndex];
+					const oppositeFirst = hexagon.corners[oppositeFirstIndex];
+					const oppositeNext = hexagon.corners[oppositeNextIndex];
+					const segment = [firstCorner, nextCorner, linearPoint(nextCorner, oppositeNext, borderRatio), linearPoint(firstCorner, oppositeFirst, borderRatio)];
+					polygonPath(segment);
+					context.fillStyle = borderColors[firstCornerIndex];
+					context.fill();
+				}
+			}			
+			var allHexagons = [];
+			function fillAll()
+			{
+				context.clearRect(0, 0, canvas.width, canvas.height);
+				allHexagons = getAllHexagons();
+				for (var i = 0; i < allHexagons.length; i++)
+					fillHexagon(allHexagons[i]);
+			}
+			function sleep(ms) 
+			{ // https://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep
+				return new Promise(resolve => setTimeout(resolve, ms));
+			}
+			// How often is an average cell redrawn?  1000 ms means that each second we will try to update N hexagons, where N is total number of hexagons on the screen.  It's random, so we might update some hexagons multiple times while not touching others.
+			var backgroundUpdatePeriodMS;
+			async function backgroundUpdate()
+			{
+				while (allHexagons.length > 0)
+				{
+					var ms = Math.ceil(backgroundUpdatePeriodMS / allHexagons.length);
+					await sleep(ms);
+					fillHexagon(allHexagons[Math.floor(Math.random()*allHexagons.length)]);
+				}
+			}
+			function menuClick()
+			{
+				const style = document.getElementById("hidden_controls").style;
+				if (style.display == "none")
+					// Show the menu.
+					style.display = "";
+				else
+					// Hide the menu.
+					style.display = "none";
+			}
+			function speedChanged()
+			{
+				const periods = [16000, 8000, 4000, 2000, 1000, 500, 250];
+				const index = document.getElementById("speed_range").value;
+				backgroundUpdatePeriodMS = periods[index];
+			}
+			function sizeChanged()
+			{
+				const lengths = [5, 10, 20, 30, 40, 80, 160];
+				const index = document.getElementById("size_range").value;
+				sideLength = lengths[index];
+				redrawSoon();
+			}
+			function borderWidthChanged()
+			{
+				const ratios = [0, 0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5];
+				const index = document.getElementById("border_width_range").value;
+				borderRatio = ratios[index];
+			}
+			function closeMenu()
+			{
+				document.getElementById("hidden_controls").style.display="none";
+			}
+			function bodyResize()
+			{
+				redrawSoon();
+			}
+		</SCRIPT>
+	</HEAD>
+	<BODY ONLOAD="initOnce()" ONRESIZE="bodyResize()">
+	  <CANVAS ID="canvas" ONCLICK="closeMenu()"></CANVAS>
+	  <DIV ID="main_control">
+	    <DIV CLASS="menu_item" ONCLICK="menuClick()">Menu</DIV>
+		<DIV ID="hidden_controls" STYLE="display: none;">
+		  <DIV CLASS="menu_item">Speed</DIV>
+		  <INPUT TYPE="range" MIN="0" MAX="6" VALUE="4" NAME="speed_range" ID="speed_range" ONINPUT="speedChanged()">
+		  <DIV CLASS="menu_item">Size</DIV>
+		  <INPUT TYPE="range" MIN="0" MAX="6" VALUE="2" NAME="size_range" ID="size_range" ONINPUT="sizeChanged()">
+		  <DIV CLASS="menu_item">Border Width</DIV>
+		  <INPUT TYPE="range" MIN="0" MAX="7" VALUE="2" NAME="border_width_range" ID="border_width_range" ONINPUT="borderWidthChanged()">
+		  <DIV ID="color_div">
+			<LABEL FOR="color_b_r">
+				<DIV ID="color_d_r">
+					<INPUT TYPE="radio" NAME="color" ID="color_b_r" ONCLICK="randomColor = third => randomColorBWMix(third, [100, 100, 0])" CHECKED>
+					R
+				</DIV>
+			</LABEL>
+			<LABEL FOR="color_b_g">
+				<DIV ID="color_d_g">
+					<INPUT TYPE="radio" NAME="color" ID="color_b_g" ONCLICK="randomColor = third => randomColorBWMix(third, [0, 100, 0])">
+					G
+				</DIV>
+			</LABEL>
+			<LABEL FOR="color_b_b">
+				<DIV ID="color_d_b">
+					<INPUT TYPE="radio" NAME="color" ID="color_b_b" ONCLICK="randomColor = third => randomColorBWMix(third, [0, 0, 100])">
+					B
+				</DIV>
+			</LABEL>
+			<LABEL FOR="color_b_rgb">
+				<DIV ID="color_d_rgb">
+					<INPUT TYPE="radio" NAME="color" ID="color_b_rgb" ONCLICK="randomColor = randomColorRGB;">
+					RGB
+				</DIV>
+			</LABEL>
+		  </DIV>
+		</DIV>
+	  </DIV>
+	</BODY>
+</HTML>
+		

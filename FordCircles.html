@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<HTML>
+	<HEAD>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta charset="UTF-8">
+		<link href="https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap" rel="stylesheet">
+		<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
+		<link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
+		<TITLE>Ford Circles - Interactive Demo</TITLE>
+		<STYLE>
+			body {
+				margin: 0;
+				padding: 0;
+				height: 100vh;
+				width: 100vw;
+				overflow: hidden;
+				font-family: 'Indie Flower', cursive;
+				font-weight: bold;
+			}
+			#board {
+				position: relative;
+				height: 100vh;
+				width: 100vw;
+				overflow: hidden;
+			}
+			#tooltip {
+				position: absolute;
+				z-index: 2;
+				font-size: 250%;
+				font-family: 'Roboto Mono', 'DejaVu Sans Mono', monospace;
+				font-weight: normal;
+				top: 0.5em;
+				right: 0.5em;
+				/*text-shadow: 3px 3px 3px #FFf, -3px -3px 3px #FFf, -3px 3px 3px #FFf, 3px -3px 3px #FFf;*/
+				background-color: #FFFFFF80;
+				pointer-events:none;
+			}
+			#controls {
+				position: absolute;
+				z-index: 4;
+				top: 0.25em;
+				left: 0.25em;
+			}
+			#controls BUTTON {
+				font-family: 'Open Sans', sans-serif;
+			}
+			.pressed {
+				outline: 0.25em solid #808080;
+			}
+			#help {
+				position: absolute;
+				z-index: 3;
+				top: 2.5em;
+				left: 2.5em;
+				right: 2.5em;
+				bottom: 1.5em;
+				display: flex;
+				justify-content: center;
+				align-items: flex-start;
+				pointer-events: none;
+			}
+			#help > DIV {
+				padding: 0 1em;
+				background-color: #fffe;
+				max-width: 45em;
+				pointer-events: all;
+				overflow-y: auto;
+				max-height: 100%;
+			}
+			#help P {
+				font-size: 150%; 
+			}
+			.button {
+				border-style: solid;
+				border-color: black;
+				border-width: 0.05em;
+				padding: 0 0.25em;
+				font-family: 'Open Sans', sans-serif;
+				font-size: initial;
+				font-weight: initial;
+				background-color: #ccc;
+			}
+			.circle {
+				width: 0;
+				height: 0;
+				border-style: solid;
+				border-radius: 50%;
+				position: absolute;
+				bottom: 0;
+				transform: translateX(-50%);
+			}
+		</STYLE>
+		
+		<SCRIPT>
+			'use strict';
+			
+			let tooltipElement;
+			function initOnce()
+			{
+				tooltipElement = document.getElementById("tooltip");
+				resetClick();
+				animate();
+			}
+			
+			function gcd(a, b)
+			{
+				if (!b)
+					return a;
+				else
+					return gcd(b, a % b);
+			}
+			
+			function isCoPrime(a, b)
+			{
+				return gcd(Math.max(a, b), Math.min(a, b)) == 1;
+			}
+			
+			// Draw all circles for the given denominator.  
+			// startValue and endValue refer to the left and right of the container, respectively.
+			// startValue and endValue are in the user visible units, e.g. 0, 1/2, 2/3, 1.
+			function draw(container, startValue, endValue, denominator)
+			{
+				const pixelsPerValue = container.offsetWidth / (endValue - startValue);
+				let drawn = 0;
+				function shouldDraw(numerator, denominator)
+				{
+					if (denominator == 1) return true;
+					if (numerator < 0)
+						// Modulo division and negative numbers don't mix.
+						numerator -= Math.floor(numerator / denominator) * denominator;
+					return isCoPrime(numerator, denominator);
+				}
+				const radius = 1/denominator/denominator/2;
+				const radiusInPixels = pixelsPerValue * radius;
+				// Notice the padding.  I want to draw any circle that's even partly visible.
+				// If you are looking at the list of fractions in that video, you do NOT want
+				// to include the padding.  In that case you'd get rid of "- radius" and 
+				// "+ radius" from the top of the for loop.
+				for (let numerator = Math.ceil((startValue - radius) * denominator);
+					 numerator / denominator <= endValue + radius;
+					 numerator++)
+					if (shouldDraw(numerator, denominator))
+					{
+						const id = "c_" + numerator + "_" + denominator;
+						let circle = document.getElementById(id);
+						if (circle)
+							// Adjust and reuse.
+							circle.classList.remove("recycle");
+						else
+						{	// Create new.
+							circle = document.createElement("div");
+							circle.id = id;
+							circle.className = "circle";
+							circle.style.borderColor = cachedColor(numerator, denominator);
+							const tooltipText = numerator + '/' + denominator + " ≈ " + (numerator / denominator);
+							//console.log(tooltipText, circle);
+							const saveN = numerator;
+							circle.addEventListener("mouseenter", () => { 
+								//setAnimationCenter(saveN, denominator);
+								//animationSpeed = 0.01;
+								tooltipElement.innerText = tooltipText;
+							});
+							circle.addEventListener("mouseleave", () => {
+								tooltipElement.innerText = "";
+								//animationSpeed = -0.01;
+							});
+							// The click event was very unreliable.  Even when I added the cache to
+							// reuse dom objects, it was hard to use.  I think the mouse down and up
+							// have to happen quickly, without a move and resize in between, for the
+							// click to register, even if the object barely moved and the mouse was
+							// always inside it.
+							circle.addEventListener("mousedown", () => {
+								setAnimationCenter(saveN, denominator);
+								console.log(tooltipText, circle);
+							});
+							container.appendChild(circle);
+						}
+						circle.style.borderWidth = radiusInPixels + "px";
+						circle.style.left = (numerator/denominator - startValue) * pixelsPerValue + "px";
+						drawn++;
+					}
+				return { drawn, radiusInPixels };
+			}
+			
+			function randomColor()
+			{
+				return "rgb(" + Math.random() * 200 + ", " + Math.random() * 200 + ", " + Math.random() * 200 + ")";
+			}
+			
+			// Returns a random color the first time it's called.  If you call it again with the same
+			// inputs, you get the same output.  This was an absolute requirement before we started
+			// caching the entire dom object.
+			const cachedColors = new Map();
+			function cachedColor(numerator, denominator)
+			{
+				const key = numerator + "/" + denominator;
+				let result = cachedColors.get(key);
+				if (!result)
+				{
+					result = randomColor();
+					cachedColors.set(key, result);
+				}
+				return result;
+			}
+			
+			function sleep(ms) {
+				if (ms > 0)
+					return new Promise(resolve => setTimeout(resolve, ms));
+				else
+					// This optimization is huge.  setTimeout(..., 0) is slow.
+					// I'd read that, but it was really obvious here.
+					return Promise.resolve();
+			}
+			
+			// Draw all circles.
+			// See draw() for a description of container, startValue, and endValue.
+			// count says how many denominators to try.  (The algorithm could go on forever, but the
+			// circles keep getting smaller and eventually you can't even see them.)
+			// if count > 0, start with the smallest circles and draw the whole numbers last.
+			// if count < 0, start with the whole numbers and draw the smallest denominator last.
+			// if count == 0, start with the whole numbers and stop when the circles seems small.
+			// sleepMs is how long to sleep (in milliseconds) between each denominator.
+			// sleepMs was a way to do simple animations, before we had the animate() function.
+			// negative vs positive values of count don't matter if sleepMs is 0.
+			// Note:  If we do not see any circles of a particular denominator, we immediately
+			// try the next denominator, without sleeping.  But we still include that denominator
+			// in the count.
+			async function fill(container, startValue, endValue, count = 0, sleepMs = 333) {
+				const start = performance.now();
+				if (!container)
+					container = document.getElementById("board");
+				if (count == 0)
+					for (let d = 1; ; d++)
+					{
+						let { drawn, radiusInPixels } = draw(container, startValue, endValue, d);
+						if (radiusInPixels < 2)
+						{
+							//console.log("d=" + d + " => radiusInPixels=" + radiusInPixels);
+							break;
+						}
+						if (drawn)
+							await sleep(sleepMs);
+					}
+				else if (count >= 0)
+					for (let d = count; d > 0; d--)
+					{
+						//console.log(d);
+						if (draw(container, startValue, endValue, d).drawn)
+							await sleep(sleepMs);
+					}
+				else
+					for (let d = 1; d <= -count; d++)
+					{
+						//console.log(d);
+						if (draw(container, startValue, endValue, d).drawn)
+							await sleep(sleepMs);
+					}
+				const end = performance.now();
+				//console.log((end - start) + "ms");
+			}
+			
+			// Immediately mark each circle with the "recycle" class.
+			// Schedule a cleanup phase before the next paint event.
+			// Completely remove any circles that are still marked as "recycle".
+			function clear()
+			{	// querySelectorAll().forEach() is not well supported according to
+				// https://css-tricks.com/snippets/javascript/loop-queryselectorall-matches/
+				// TODO Force it into an array or similar.
+				document.querySelectorAll(".circle").forEach(circle => circle.classList.add("recycle"));
+				// Queue this task up to be done soon.
+				// Alternate way to do this:  Window.requestAnimationFrame()
+				Promise.resolve().then(() => document.querySelectorAll(".recycle").forEach(circle => circle.remove()));
+				// Originally this code did all the deleting immediately.  I added the recycle part in hopes of
+				// solving a problem with missing click events.  This change did not fix that problem.  Performance
+				// seemed to get better, but only by a tiny amount.
+			}
+			
+			let animationCenterLeft;
+			let animationCenterRight;
+			function setAnimationCenter(numerator, denominator)
+			{
+				if (!denominator)
+				{	// Pick decent random values if no values are supplied.
+					denominator = Math.floor(Math.random()*20 + 1.5);
+					numerator = Math.floor(Math.random() * (denominator + 1));
+				}
+				// TODO The radius formula has been copied in two places.
+				// Should make that a function.
+				const radius = 1 / denominator / denominator / 2;
+				const center = numerator / denominator;
+				animationCenterLeft = center - radius;
+				animationCenterRight = center + radius;
+			}
+			
+			let animationStart = 0;
+			let animationEnd = 1;
+
+			async function animate()
+			{
+				const container = document.getElementById("board");
+				while (true) 
+				{
+					clear();
+					await fill(container, animationStart, animationEnd, 0, 0);
+					await sleep(50);
+					animationStart += (animationCenterLeft - animationStart) * animationSpeed;
+					animationEnd -= (animationEnd - animationCenterRight) * animationSpeed;
+				}
+			}
+			
+			// speedTick is how how calibrate the animationSpeed, i.e. how fast does it go if you are at the lowest speed.
+			// 0 means stopped.  0.01 means we move 1% closer to out goal each time we update the screen.  If you click
+			// a second time to speed up, you'll go almost twice as fast.  More precisely, we will now go as far each redraw
+			// as we were going after 2 redraws.  That means that you can hit the button over and over and never get to
+			// 100% speed.
+			const speedTick = 0.003;
+			let animationSpeed = 0;
+			function zoomOutClick()
+			{
+				updatePressed("zoomOutClick", 1);
+				if (animationSpeed >= 0)
+					animationSpeed = -speedTick;
+				else
+					animationSpeed = (1 + animationSpeed) * (1 - speedTick) - 1;
+			}
+			function stopClick()
+			{
+				updatePressed("stopClick", 1);
+				// TODO This is ridiculously inefficient.
+				animationSpeed = 0;
+			}
+			function zoomInClick()
+			{
+				updatePressed("zoomInClick", 1);
+				if (animationSpeed <= 0)
+					animationSpeed = speedTick;
+				else
+					animationSpeed = 1 - (1 - animationSpeed) * (1 - speedTick);
+			}
+			function updatePressed(id, group)
+			{	// Using the pressed class to simulate radio buttons.
+				document.querySelectorAll('#controls [data-group="' + group + '"]').forEach(button => {
+					button.classList[(button.id == id)?"add":"remove"]("pressed");
+				});
+			}
+			function resetClick()
+			{	// Alomst like hitting the browser's refresh button, but help doesn't change.
+				stopClick();
+				zoomInClick();
+				animationStart = 0;
+				animationEnd = 1;
+				setAnimationCenter();
+			}
+			function helpClick()
+			{	// Toggle the state of the help window.
+				const help = document.getElementById("help");
+				const showNow = help.style.display == "none";
+				help.style.display = showNow?"":"none";
+				updatePressed(showNow?"helpClick":"", 2);				
+			}
+			
+		</SCRIPT>
+		
+	</HEAD>
+	<BODY ONLOAD="initOnce()">
+		<DIV ID="board">
+			<DIV ID="tooltip"></DIV>
+			<DIV ID="controls">
+			  <BUTTON ID="zoomOutClick" ONCLICK="zoomOutClick()" DATA-GROUP="1">Out</BUTTON>
+			  <BUTTON ID="stopClick" ONCLICK="stopClick()" DATA-GROUP="1">Pause</BUTTON>
+			  <BUTTON ID="zoomInClick" ONCLICK="zoomInClick()" DATA-GROUP="1">In</BUTTON>
+			  <BUTTON ONCLICK="resetClick()">Reset</BUTTON>
+			  <BUTTON ID="helpClick" ONCLICK="helpClick()" DATA-GROUP="2" CLASS="pressed">Help</BUTTON>
+			</DIV>
+			<DIV ID="help">
+			  <DIV>
+				<P>
+					Hover your mouse over a circle to see the position of the center of the circle.&nbsp;
+					That will be shown at the top right of this page.
+				</P>
+				<P>
+					Click the <SPAN CLASS="button">In</SPAN> button to zoom in.&nbsp;
+					This is the default.&nbsp;
+					Click <SPAN CLASS="button">In</SPAN> again to zoom in faster.&nbsp;
+					Click on a circle to zoom in on that circle.
+				</P>
+				<P>
+					Click the <SPAN CLASS="button">Out</SPAN> button to switch directions.&nbsp;
+					Click <SPAN CLASS="button">Out</SPAN> again to move faster.
+				</P>
+				<P>
+					Click the <SPAN CLASS="button">Pause</SPAN> button to freeze the display.&nbsp;
+					Click the <SPAN CLASS="button">Reset</SPAN> button to reset and restart.&nbsp;
+					Click the <SPAN CLASS="button">Help</SPAN> button to show or hide this help.&nbsp;
+				</P>
+				<P>
+					This program was inspired by <A HREF="https://www.youtube.com/watch?v=0hlvhQZIOQw">Funny Fractions and Ford Circles - Numberphile</A>.&nbsp;
+					I have only tested this on Chrome.
+				</P>
+			  </DIV>	
+			</DIV>
+		</DIV>
+	</BODY>
+</HTML>

@@ -1,0 +1,400 @@
+<HTML>
+	<HEAD>
+		<TITLE>Dragon Scales</TITLE>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
+		<STYLE>
+			body {
+				margin: 0;
+				padding: 0;
+				font-family: 'Roboto', sans-serif;
+				font-size: 200%;
+				overflow: hidden;
+				height: 100vh;
+				width: 100vw;
+			}
+			#canvas {
+				height: 100vh;
+				width: 100vw;
+			}
+			#main_control {
+				position: absolute;
+				top: 0.25em;
+				left: 0.25em;
+				right: 0.25em;
+				bottom: 0.25em;
+				text-align: center;
+				overflow-y: auto;
+			}
+			.menu_item {
+				text-shadow: 2px 2px 4px #FFFFFF;
+				text-align: center;
+			}
+			#main_control input[type="range"] {
+				width: 95%;
+			}
+			#main_control input[type=checkbox] {
+				/*transform: scale(3.5);*/
+				height: 1.5em;
+				width: 1.5em;
+			}
+		</STYLE>
+		<SCRIPT>
+			var canvas;
+			var context;
+			function initOnce()
+			{
+				canvas = document.getElementById("canvas");
+				context = canvas.getContext("2d");
+				speedChanged();
+				borderWidthChanged();
+				maxErrorChanged();
+				sizeChanged();
+				autoCycleClick();
+				redrawSoon();
+				backgroundUpdate();
+			}
+			var redrawPending = false;
+			async function redrawFinally()
+			{
+				baseColor = neutralColor;
+				redrawPending = false;
+				const multiplier = 1;//devicePixelRatio;
+				canvas.width = canvas.offsetWidth * multiplier;
+				canvas.height = canvas.offsetHeight * multiplier;
+				fillAll();
+			}
+			function redrawSoon()
+			{
+				if (!redrawPending)
+				{
+					redrawPending = true;
+					// TODO Something strange happening here.  It should schedule the async job and immediately return.  but it seems to be calling the async function synchronously.
+					redrawFinally();
+				}
+			}
+			
+			// base and direction should be points, objects containing an x and a y.  ratio is a number.  If ratio is 0, we return base, or a new point with the same x and y.  If ratio is 1, we return direction or a new point with the same x and y.  For any other value of ratio we return a new point on the line connecting base and direction.  ratio = 0.5 will be half way between the points.  For a negative ratio, base will be between the returned point and direction.  For a ratio greater than 1, direction will be between base and the returned point.  Everything scales linearly.
+			// Originally fillHexagon() called linearPoint directly when drawing highlights and shadows.  Ratio came from the "Border Width" input.  base was a corner touching the shadow.  direction was the center of the hexagon, or the opposite corner.  The problem was that some highlights and shadows would be bigger than others because of the distortion.  That looked a little off, especially for small border widths.
+			function linearPoint(base, direction, ratio)
+			{
+				const result = {};
+				result.x = base.x + ratio * (direction.x - base.x);
+				result.y = base.y + ratio * (direction.y - base.y);
+				return result;
+			}
+			
+			// aimWithLimit() is similar to linearPoint() but we want the border width to be the same for all hexagons, regardless of their distortion.  base is still a corner touching the shadow or highlight.  The result will be on the line SEGMENT connecting base and direction.  The distance between base and the new point will typically be (ratio * sideLength).  Howevever, if ratio is too big or small we will return base or direction, whichever is closer to the ideal distance from base.
+			function aimWithLimit(base, direction, ratio)
+			{
+				if (ratio <= 0) return base;
+				const desiredLength = ratio * sideLength;
+				const maxLength = Math.hypot(base.x - direction.x, base.y - direction.y);
+				if (desiredLength > maxLength) return direction;
+				return linearPoint(base, direction, desiredLength/maxLength);
+			}
+			
+			// All sides of all hexagons will be exactly sideLength if there is no distortion.  All distortions are relative to sideLength. 
+			var sideLength;
+			
+			// The GUI calls this "Distortion."  Each point will be drawn no more than sideLength * maxError from the ideal point.
+			var maxError;
+			function simpleMaxError() { return maxError; }
+			
+			// These were never hooked up to the GUI because they didn't look very interesting.  They worked as expected, aside from not being interesting.
+			function maxErrorLeftToRight(point) 
+			{
+				var ratio = point.baseX / canvas.width;
+				if (ratio < 0)
+					ratio = 0;
+				else if (ratio > 1)
+					ratio = 1;
+				return ratio * 0.5;
+			}
+			function maxErrorTopToBottom(point) 
+			{
+				var ratio = point.baseY / canvas.height;
+				if (ratio < 0)
+					ratio = 0;
+				else if (ratio > 1)
+					ratio = 1;
+				return ratio * 0.5;
+			}
+			var getMaxError = simpleMaxError;
+			
+			function randomizePoint(point)
+			{
+				const maxError = getMaxError(point);
+				if (maxError <= 0)
+				{
+					point.x = point.baseX;
+					point.y = point.baseY;
+				}
+				else
+				{
+					const error = Math.random() * sideLength * maxError;
+					const θ = Math.random() * 2 * Math.PI;
+					point.x = point.baseX + Math.cos(θ) * error;
+					point.y = point.baseY + Math.sin(θ) * error;
+				}
+			}
+			function getAllHexagons()
+			{
+				const hexagonWidth = 2 * sideLength;
+				const hexagonXFrequency = 3 * sideLength;
+				const hexagonHeight = Math.sqrt(3) * sideLength;
+				const hexagonHalfHeight = hexagonHeight / 2;
+				const hexagonYFrequency = hexagonHalfHeight;
+				const firstRowCount = Math.ceil(canvas.width / hexagonXFrequency) + 1;
+				const secondRowCount = firstRowCount - 1;
+				// Note that we add two extra rows compared to the hexagons in other programs.  That's required because of the error that we add in this program.  The new top row has index -1.  The new bottom row has index (endRowIndex-1).  So use use endRowIndex like rowCount in a for loop, but the actual number of rows is endRowIndex+1.
+				const endRowIndex = Math.ceil(canvas.height / hexagonYFrequency) + 2;
+				const allPoints = [];
+				const pointsByLocation = {};
+				const LEFT = "L";
+				const RIGHT = "R";
+				const keyByLocation = function(column, row, side)
+				{
+					return column + ',' + row + ',' + side;
+				}
+				const addPoint = function(columnNumber, rowNumber, x, y, side)
+				{
+					const newPoint = { 
+						// Each point is used by up to 3 different hexagons.  pointsByLocaton and keyByLocation index this point based on row and column number of the hexagon whose center is at the same Y position as this point.  We also need to say if this is the far left or right point of the hexagon.  We save these values in the point only for debugging.
+						row: rowNumber, column: columnNumber, side: side,
+						// The base location of the point.  If the error is 0, the point will be exactly here.  Each time we pick the exact location of the point, it will be relative to this base location.  I.e. the maxError is the max distance from here.  No matter how many times we re-randomize the point, it won't drift any further.
+						baseX: x, baseY: y,
+						// Which hexagons are using this point?  Whenever we move a point, we want to redraw all associated hexagons at once.  The hexagons should always fit snug against one another.
+						hexagons: []};	
+					randomizePoint(newPoint);
+					allPoints.push(newPoint);
+					pointsByLocation[keyByLocation(columnNumber, rowNumber, side)] = newPoint;
+				}
+				const getPoint = function (columnNumber, rowNumber, side)
+				{
+					const result = pointsByLocation[keyByLocation(columnNumber, rowNumber, side)];
+					//if (!result) debugger;
+					return result;
+				}
+				for (var rowNumber = -2; rowNumber <= endRowIndex; rowNumber++)
+				{
+					const centerY = rowNumber * hexagonYFrequency;
+					const evenRow = (rowNumber%2)==0;
+					const xOffset = evenRow?0:(hexagonXFrequency/2);
+					const numberOfColumns = evenRow?firstRowCount:secondRowCount;
+					for (var columnNumber = -1; columnNumber <= numberOfColumns; columnNumber++)
+					{
+						const centerX = xOffset + columnNumber * hexagonXFrequency;
+						const farLeftX = centerX - sideLength;
+						addPoint(columnNumber, rowNumber, farLeftX, centerY, LEFT);
+						const farRightX = centerX + sideLength;
+						addPoint(columnNumber, rowNumber, farRightX, centerY, RIGHT);
+					}
+				}
+				const allHexagons = [];
+				for (var rowNumber = -1; rowNumber < endRowIndex; rowNumber++)
+				{
+					//const centerY = rowNumber * hexagonYFrequency;
+					//const topY = centerY - hexagonHalfHeight;
+					//const bottomY = centerY + hexagonHalfHeight;
+					const evenRow = (rowNumber%2)==0;
+					//const xOffset = evenRow?0:(hexagonXFrequency/2);
+					const numberOfColumns = evenRow?firstRowCount:secondRowCount;
+					for (var columnNumber = 0; columnNumber < numberOfColumns; columnNumber++)
+					{
+						//const centerX = xOffset + columnNumber * hexagonXFrequency;
+						//const farLeftX = centerX - sideLength;
+						//const leftX = centerX - sideLength / 2;
+						//const rightX = leftX + sideLength;
+						//const farRightX = centerX + sideLength;
+						//const third = rowNumber % 3;
+						// If you keep the column number constant and keep increasing the row number by one each time, you will make a zig-zag pattern on the screen.
+						// If you start from an even numbered row and go one row up or down but leave the column number the same, you'll move a little left on the screen.  From an odd numbered row you'll move a little right on the screen. 
+						const columnToTheLeft = evenRow?columnNumber-1:columnNumber;
+						const columnToTheRight = evenRow?columnNumber:columnNumber+1;
+						// Start from the far right (θ = 0) and rotate counter clockwise (θ increasing).
+						const corners = [
+							getPoint(columnNumber, rowNumber, RIGHT),
+							getPoint(columnToTheRight, rowNumber-1, LEFT),
+							getPoint(columnToTheLeft, rowNumber-1, RIGHT),
+							getPoint(columnNumber, rowNumber, LEFT),
+							getPoint(columnToTheLeft, rowNumber+1, RIGHT),
+							getPoint(columnToTheRight, rowNumber+1, LEFT)];
+						const hexagon = { row: rowNumber, column: columnNumber, corners: corners };
+						corners.forEach(corner => corner.hexagons.push(hexagon));
+						allHexagons.push(hexagon);
+					}
+				}
+				return { allHexagons: allHexagons, allPoints: allPoints };
+			}
+			var neutralColor; 
+			var baseColor;
+			function polygonPath(points)
+			{
+				context.beginPath();
+				for (var i = 0; i < points.length; i++)
+				{
+					const point = points[i];
+					if (i == 0)
+						context.moveTo(point.x, point.y);
+					else
+						context.lineTo(point.x, point.y);
+				}
+				context.closePath();
+			}
+			var borderRatio;
+			function fillHexagon(hexagon)
+			{
+				polygonPath(hexagon.corners);
+				context.fillStyle = baseColor;
+				context.fill();
+				const center = { x: 0, y: 0 };
+				hexagon.corners.forEach(corner => { center.x += corner.x; center.y += corner.y; });
+				center.x /= 6;
+				center.y /= 6;
+				hexagon.corners.forEach(corner => {
+				});
+				for (var firstCornerIndex = 0; firstCornerIndex < 6; firstCornerIndex++)
+				{
+					const nextCornerIndex = (firstCornerIndex + 1) % 6;
+					const firstCorner = hexagon.corners[firstCornerIndex];
+					const nextCorner = hexagon.corners[nextCornerIndex];
+					if ((firstCorner.x == nextCorner.x) && (firstCorner.y == nextCorner.y))
+						continue;
+					const segment = [firstCorner, nextCorner, aimWithLimit(nextCorner, center, borderRatio), aimWithLimit(firstCorner, center, borderRatio)];
+					polygonPath(segment);
+					// θ = 0 means it's going down and to the left.  So it should get the most reflected light. θ = π means it's going up and to the right.  So it should get the most shadow.
+					const θ = Math.atan2(nextCorner.x - firstCorner.x, nextCorner.y - firstCorner.y) + 1/4*Math.PI;
+					const reflection = Math.cos(θ);
+					//const alpha = (reflection>0)?(Math.sqrt(reflection)*50):(reflection*-50);
+					//const alpha = Math.abs(reflection)*40+10;
+					const alpha = (reflection>0)?(reflection*40+10):(reflection*-10+10);
+					const color = "rgba(" + ((reflection>0)?"255,255,255":"0,0,0") + "," + alpha + "%";
+					context.fillStyle = color;
+					context.fill();
+				}
+			}			
+			var allPoints = [];
+			function fillAll()
+			{
+				context.clearRect(0, 0, canvas.width, canvas.height);
+				const all = getAllHexagons();
+				for (var i = 0; i < all.allHexagons.length; i++)
+					fillHexagon(all.allHexagons[i]);
+				allPoints = all.allPoints;	
+			}
+			var autoCycleStartTime = 0;
+			const msPerColor = 2000;
+			const colorCount = 3;
+			function updateValues()
+			{
+				if (autoCycleStartTime == 0) return;
+				const timeSinceStart = new Date().getTime() - autoCycleStartTime;
+				const timeSinceReset = timeSinceStart % (msPerColor * colorCount);
+				const colorIndex = Math.floor(timeSinceReset / msPerColor);
+				const colorDecay = (timeSinceReset % msPerColor) / msPerColor;
+				baseColor = "hsl(" + (360/colorCount*colorIndex+39) + ",100%," + (50+colorDecay*45) + "%)";
+				document.getElementById('border_width_range').value = colorIndex; borderWidthChanged();
+			}
+			function sleep(ms) 
+			{ // https://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep
+				//console.log("sleep("+ms+")");
+				return new Promise(resolve => setTimeout(resolve, ms));
+			}
+			// How often is an average cell redrawn?  1000 ms means that each second we will try to update N hexagons, where N is total number of hexagons on the screen.  It's random, so we might update some hexagons multiple times while not touching others.
+			var backgroundUpdatePeriodMS;
+			async function backgroundUpdate()
+			{
+				while (true)
+				{
+					var ms = Math.ceil(backgroundUpdatePeriodMS / allPoints.length);
+					await sleep(ms);
+					if (allPoints.length > 0)
+					{
+						updateValues();
+						const point = allPoints[Math.floor(Math.random()*allPoints.length)];
+						randomizePoint(point);
+						point.hexagons.forEach(hexagon => fillHexagon(hexagon));
+					}
+				}
+			}
+			function menuClick()
+			{
+				const style = document.getElementById("hidden_controls").style;
+				if (style.display == "none")
+					// Show the menu.
+					style.display = "";
+				else
+					// Hide the menu.
+					style.display = "none";
+			}
+			function speedChanged()
+			{
+				const maxPeriod = 1024000;
+				const power = document.getElementById("speed_range").value;
+				backgroundUpdatePeriodMS = maxPeriod / Math.pow(2, power);
+			}
+			function sizeChanged()
+			{
+				const lengths = [10, 20, 30, 40, 80, 160];
+				const index = document.getElementById("size_range").value;
+				sideLength = lengths[index];
+				redrawSoon();
+			}
+			function borderWidthChanged()
+			{   // 0.1 means to take 10% of the distance from the edge to the CENTER.
+				// In other versions of this code we measure from the edge to the opposide edge.
+				const ratios = [0.04, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75];
+				const index = document.getElementById("border_width_range").value;
+				borderRatio = ratios[index];
+			}
+			function maxErrorChanged()
+			{
+				const input = document.getElementById("max_error_range");
+				maxError = input.value;
+			}
+			function closeMenu()
+			{
+				document.getElementById("hidden_controls").style.display="none";
+			}
+			function bodyResize()
+			{
+				redrawSoon();
+			}
+			function autoCycleClick()
+			{
+				const checkbox = document.getElementById("auto_cycle");
+				autoCycleRunning = checkbox.checked;
+				if (autoCycleRunning)
+				{
+					autoCycleStartTime = new Date().getTime();
+					neutralColor = "#808080";
+				}
+				else
+				{
+					autoCycleStartTime = 0;
+					baseColor = neutralColor = "red";
+				}
+			}
+			/* Hiqh quality as a checkbox.  (Looks at pixel ratio, but then adjusts the sizes accordingly so HQ gives the same size hexagons on the screen.)  A second speed control only for autocolor mode.
+			*/
+		</SCRIPT>
+	</HEAD>
+	<BODY ONLOAD="initOnce()" ONRESIZE="bodyResize()">
+	  <CANVAS ID="canvas" ONCLICK="closeMenu()"></CANVAS>
+	  <DIV ID="main_control">
+	    <DIV CLASS="menu_item" STYLE="cursor: pointer" ONCLICK="menuClick()">Menu</DIV>
+		<DIV ID="hidden_controls" STYLE="display: none;">
+		  <DIV CLASS="menu_item">Speed</DIV>
+		  <INPUT TYPE="range" MIN="0" MAX="12" VALUE="8" NAME="speed_range" ID="speed_range" ONINPUT="speedChanged()">
+		  <DIV CLASS="menu_item">Size</DIV>
+		  <INPUT TYPE="range" MIN="0" MAX="5" VALUE="2" NAME="size_range" ID="size_range" ONINPUT="sizeChanged()">
+		  <DIV CLASS="menu_item">Border Width</DIV>
+		  <INPUT TYPE="range" MIN="0" MAX="6" VALUE="1" NAME="border_width_range" ID="border_width_range" ONINPUT="borderWidthChanged()">
+		  <DIV CLASS="menu_item">Distortion</DIV>
+		  <INPUT TYPE="range" MIN="0" MAX="0.5" VALUE="0.4" STEP="0.05" NAME="max_error_range" ID="max_error_range" ONINPUT="maxErrorChanged()">
+		  <DIV CLASS="menu_item"><INPUT TYPE="checkbox" ID="auto_cycle" NAME="auto_cycle" ONCLICK="autoCycleClick()"> <LABEL FOR="auto_cycle">Auto Cycle</LABEL></DIV>
+		</DIV>
+	  </DIV>
+	</BODY>
+</HTML>

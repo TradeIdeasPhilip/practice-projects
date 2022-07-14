@@ -1,0 +1,161 @@
+<HTML>
+	<HEAD>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<STYLE>
+			body {
+				margin: 0;
+				padding: 0;
+				position: relative;
+			}
+			#main_container {
+				position: absolute;
+				top: 0;
+			}
+			#instructions {
+				font-size: 200%;
+			}
+			.triangle {
+				width: 100%;
+				height: 100%;
+				position: absolute;
+				left: 50%;
+				top: 50%;
+				transform: translate(-50%, -50%);
+				clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+				transition-property: width, height, top, left;
+				transition-duration: 500ms;
+			}
+			.triangle[data-which="1"] {
+				background-color: red;
+				background-image: url("girl1.jfif");
+				background-repeat: no-repeat; 
+				background-size: 50% 70%;
+				background-position: center bottom;
+			}
+			.triangle[data-which="2"] {
+				background-color: blue;
+				background-image: url("girl2.jpg");
+				background-repeat: no-repeat; 
+				background-size: 50% 70%;
+				background-position: center bottom;
+			}
+			.triangle[data-which="3"] {
+				background-color: green;
+				background-image: url("boy.jpg");
+				background-repeat: no-repeat; 
+				background-size: 50% 70%;
+				background-position: center bottom;
+			}
+			@media (min-aspect-ratio: 11547/10000) {
+				#main_container {
+					/* extra space on the left and right. */
+					width:  115.47vh;
+					height: 100vh;
+					left: 50%;
+					transform: translateX(-50%);
+					/* background-color: pink; */
+				}
+			}
+			@media (max-aspect-ratio: 11547/10000) {
+				#main_container {
+					/* extra space on top and bottom. */
+					width: 100vw;
+					height: 86.6vw;
+					top: 50%;
+					transform: translateY(-50%);
+					/* background-color: cyan; */
+				}
+			}
+		</STYLE>
+		<SCRIPT>
+			function initOnce()
+			{
+				const triangle = document.querySelector(".triangle");
+				positionFromData(triangle);
+				triangle.dataset["which"] = Math.floor(Math.random() * 3) + 1;
+				//triangle.addEventListener("click", onClick);
+			}
+			var busy = false;
+			function positionFromData(item)
+			{
+				if (!item.dataset.size)
+				{	// Initially centered and as big as the container.
+					item.dataset.size = 1;
+					// We say "left" and "top" to be consistent with the CSS.
+					// However, we're actually setting the position of the middle
+					// of the item.
+					item.dataset.left = 0.5;
+					item.dataset.top = 0.5;
+				}
+				item.style.top = (item.dataset.top * 100) + "%";
+				item.style.left = (item.dataset.left * 100) + "%";
+				item.style.width = item.style.height = (item.dataset.size * 100) + "%";
+			}
+			function onClick(item)
+			{
+				// Note:  If you say triangle.addEventListener("click", onClick); you
+				// will receive a MouseEvent.  The following line would find the
+				// original element.
+				//item = mouseEvent.currentTarget;
+				// The problem with that strategy is that cloneNode() does not copy
+				// the events added with addEventLister().  However, it does copy
+				// the event listener added by ONCLICK="", so I used that instead.
+				if (busy) return;
+				busy = true;
+				item.dataset.size = item.dataset.size / 2;
+				const leftCopy = item.cloneNode(true);
+				const rightCopy = item.cloneNode(true);
+				item.style.zIndex = "4";
+				item.parentElement.appendChild(leftCopy);
+				item.parentElement.appendChild(rightCopy);
+				const possibleWhiches = [];
+				for (var i = 1; i <= 3; i++)
+					if (i != item.dataset.which - 0)
+						possibleWhiches.push(i);
+				if (Math.random() < 0.5)
+					possibleWhiches.push(possibleWhiches.shift());				
+				leftCopy.dataset.which = possibleWhiches[0];
+				rightCopy.dataset.which = possibleWhiches[1];
+				const motion = item.dataset.size / 2;
+				const initialTop = item.dataset.top - 0;
+				const initialLeft = item.dataset.left - 0;
+				item.dataset.top = initialTop - motion;
+				leftCopy.dataset.top = initialTop + motion;
+				leftCopy.dataset.left = initialLeft - motion;
+				rightCopy.dataset.top = initialTop + motion;
+				rightCopy.dataset.left = initialLeft + motion;
+				setTimeout(function()
+				{
+					positionFromData(item);
+					positionFromData(leftCopy);
+					positionFromData(rightCopy);
+					setTimeout(function()
+					{
+						item.style.zIndex = "";
+						busy = false;
+						var msg;
+						switch (Math.floor(Math.random()*3))
+						{
+							case 0:
+								msg = "Keep clicking.";
+								break;
+							case 1:
+								msg = "Click again.";
+								break;
+							case 2:
+								msg = "Click for even more.";
+								break;
+						}
+						document.getElementById("instructions").innerText = msg;
+					}, 500);
+				}, 0);
+			}
+		</SCRIPT>
+	</HEAD>
+	<BODY ONLOAD="initOnce()">
+	    <DIV ID="instructions">Click for more!</DIV>
+		<DIV ID="main_container">
+			<DIV CLASS="triangle" ONCLICK="onClick(this)"></DIV>
+		</DIV>
+	</BODY>
+</HTML>

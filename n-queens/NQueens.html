@@ -1,0 +1,112 @@
+<HTML>
+  <HEAD>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <TITLE>N Queens</TITLE>
+	<style>
+	.blackBackground {
+	  background-color: black;
+	  color: white;
+	}
+	.whiteBackground {
+	  background-color: white;
+	  color: black;
+	}
+</style>
+    <SCRIPT>
+	  // Info about web worker objects (i.e. threads):
+	  // https://www.w3schools.com/html/html5_webworkers.asp
+	  // https://github.com/mdn/simple-web-worker/blob/gh-pages/main.js
+	  
+	  var worker;
+	  function mainInit()
+	  {
+	    displayResult([1, 3, 0, 2]);
+		worker = new Worker("./NQueensData.js");
+	  }
+	  
+	  // Returns false if we couldn't find a solution.
+	  // Otherwise returns a list of moves that will solve the problem.
+	  // Warning:  [0] is sometimes interpreted as false! See !! below.
+	  function solve(size, initialState = [])
+	  {
+	    if (size == initialState.length)
+		  return initialState;
+	    var available = {};
+		for (var i = 0; i < size; i++)
+		{
+		  available[i] = i;
+		}
+		for (var row = 0; row < initialState.length; row++)
+		{
+		  delete available[initialState[row]];
+		  const offset = initialState.length - row;
+		  delete available[initialState[row] - offset];
+		  delete available[initialState[row] + offset];		  
+		}
+		// TODO For the top row remove half of the available items.
+		// Symetry argument.
+		for (var columnName in available)
+		{
+		  const column = available[columnName];
+		  const tryThis = initialState.slice(0);
+		  tryThis.push(column);
+		  const result = solve(size, tryThis);
+		  if (!!result)
+		    return result;		  
+		}
+		return false;
+	  }
+	  function gridCell(blackBackground, inside)
+	  {
+	    var result = '<SPAN CLASS="';
+		if (blackBackground)
+  		  result += "blackBackground";
+		else
+		  result += "whiteBackground";
+		result += '">&nbsp;';
+		result += inside;
+		result += "&nbsp;</SPAN>";
+		return result;
+	  }
+	  function displayResult(result)
+	  {
+	    var asHtml = "";
+		if (!result)
+		  asHtml = '<FONT COLOR="red">No Solution</FONT>';
+		else
+		{
+			for (var row = 0; row < result.length; row++)
+			{
+			  const queenColumn = result[row];
+			  asHtml += "<DIV>";
+			  for (var column = 0; column < result.length; column++)
+			  {
+			    const blackBackground = ((row + column) % 2) == 0;
+				const text = (column == queenColumn)?"Q":"&nbsp;";
+			    const cell = gridCell(blackBackground, text);
+				asHtml += cell;
+		      }
+			  asHtml += "</DIV>";			
+			}
+		}
+		document.getElementById("output").innerHTML = asHtml;
+	  }
+	  function onButtonClick()
+	  {
+	    const size = parseInt(document.getElementById("n").value, 10);
+		const result = solve(size);
+		displayResult(result);
+	  }
+    </SCRIPT>
+  </HEAD>
+  <BODY ONLOAD="mainInit()">
+    <H1>N Queens</H1>
+	<DIV>
+	  N=
+	  <INPUT NAME="n" ID="n" VALUE="4" SIZE="3">
+	  <BUTTON ONCLICK="onButtonClick()">Solve</BUTTON>
+	</DIV>
+	<DIV ID="output" STYLE="font-family:  monospace">
+	</DIV>
+  </BODY>
+</HTML>

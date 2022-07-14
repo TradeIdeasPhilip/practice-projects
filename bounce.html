@@ -1,0 +1,78 @@
+<HTML>
+  <HEAD>
+    <SCRIPT>
+      let ball;
+	  const usableWidth = 10;
+	  const usableHeight = 10;
+	  var ballX = 1;
+	  let ballY = 2;
+	  let ballDeltaX = 1;
+	  let ballDeltaY = 2.3;
+	  const gravity = 0.5;
+	  let previousTime = 0;
+	  function initOnce() {
+		ball = document.getElementById("ball");
+		const container = document.getElementById("container");
+		scheduleAnimation();
+	  }
+	  function scheduleAnimation() {
+	    requestAnimationFrame(updateBall);
+	  }
+	  function updateBall(time) {
+	    if (previousTime) {
+		  const motion = (time - previousTime) / 1000;
+		  ballX += motion * ballDeltaX;
+		  if (ballDeltaX > 0) {
+		    if (ballX > usableWidth) {
+		      ballX = usableWidth;
+			  ballDeltaX = - ballDeltaX;
+			}
+		  } else {
+		    if (ballX < 0) {
+		      ballX = 0;
+			  ballDeltaX = - ballDeltaX;
+			}
+		  }			
+		  ballY += motion * ballDeltaY;
+		  if (ballDeltaY > 0) {
+		    if (ballY > usableHeight) {
+			  ballY = usableHeight;
+			  ballDeltaY = - ballDeltaY;
+			}
+		  } else {
+		    if (ballY < 0) {
+			  ballY = 0;
+			  ballDeltaY = - ballDeltaY;
+			}
+		  }
+		  ballDeltaY -= gravity * motion;
+		}
+		ball.style.left = ballX + "em";
+		ball.style.bottom = ballY + "em";
+	    previousTime = time;
+	    scheduleAnimation();
+	  }
+	</SCRIPT>
+	<STYLE>
+	  #container {
+	    width: 12em;
+		height: 12em;
+		background-color: #ccc;
+		position: relative;
+	  }
+	  #ball {
+	    position: absolute;
+		width: 2em;
+		height: 2em;
+		left: 1em;
+		bottom: 2em;
+		background-color: red;
+		border-radius: 1em;
+	</STYLE>
+  </HEAD>
+  <BODY ONLOAD="initOnce()">
+    <DIV ID="container">
+	  <DIV ID="ball"></DIV>
+	</DIV>
+  </BODY>
+</HTML>

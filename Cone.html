@@ -1,0 +1,94 @@
+<HTML>
+  <!-- https://developer.mozilla.org/en-US/docs/Web/CSS/conic-gradient()
+  https://drafts.csswg.org/resize-observer-1/
+  https://developer.mozilla.org/en-US/docs/Web/CSS/calc()
+  https://gist.github.com/stereokai/7666bfe93929b14c2dced148c79e0e97
+  
+  -->
+  <HEAD>
+	<STYLE>
+	  .top-circle-container {
+	    width: 20em;
+	    height: 2em;
+	  }
+	  .top-circle {
+	    position: relative;
+		z-index: 2;
+	    width: 20em;
+	    height: 4em;
+		background-color: #c0c0c0;
+		clip-path: ellipse(50% 50%);
+	  }
+	  .down-triangle {
+	    width: 20em;
+		height: 20em;
+		background: conic-gradient(from -45deg at 50% 100%, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff);
+		/* background: conic-gradient(from -45deg at 50% 0%, #fff, #000, #fff, #000, #fff);*/
+		clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+		position: relative;
+	  }
+	  .fill-me {
+	    width: 20em;
+		height: 20em;
+		background: conic-gradient(from 45deg at 50% 0%, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff);
+		/* background: conic-gradient(from -45deg at 50% 0%, #fff, #000, #fff, #000, #fff);*/
+		clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+		position: relative;
+	  }
+	  .bottom {
+		width: 20em;
+		height: 2em;
+		background: conic-gradient(from 45deg at 50% -20em, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff);
+		clip-path: ellipse(50% 100% at 50% 0%);
+	  }
+	</STYLE>
+  </HEAD>
+  <BODY>
+    <DIV style="display: flex; flex-wrap: wrap">
+	  <DIV>
+		<DIV class="down-triangle"></DIV>
+		<DIV class="fill-me"></DIV>
+  	  </DIV>
+  	  <DIV>&nbsp;&nbsp;&nbsp;</DIV>
+	  <DIV>
+		<DIV class="top-circle-container">
+		  <DIV class="top-circle">
+		  </DIV>
+		</DIV>
+		<DIV class="down-triangle"></DIV>
+		<DIV class="fill-me"></DIV>
+		<DIV class="bottom"></DIV>
+  	  </DIV>
+  	  <DIV>&nbsp;&nbsp;&nbsp;</DIV>
+	  <DIV>
+		<DIV style="height: 4px" class="top-circle-container">
+		  <DIV style="height: 8px" class="top-circle">
+		  </DIV>
+		</DIV>
+		<DIV class="down-triangle"></DIV>
+		<DIV class="fill-me"></DIV>
+		<DIV style="height: 4px" class="bottom"></DIV>
+  	  </DIV>
+  	  <DIV>&nbsp;&nbsp;&nbsp;</DIV>
+	  <DIV>
+		<DIV style="height: 4px" class="top-circle-container">
+		  <DIV style="height: 8px" class="top-circle">
+		  </DIV>
+		</DIV>
+		<DIV style="display:none" class="down-triangle"></DIV>
+		<DIV class="fill-me"></DIV>
+		<DIV style="height: 4px" class="bottom"></DIV>
+  	  </DIV>
+  	  <DIV>&nbsp;&nbsp;&nbsp;</DIV>
+	  <DIV>
+		<DIV style="height: 4px" class="top-circle-container">
+		  <DIV style="height: 8px" class="top-circle">
+		  </DIV>
+		</DIV>
+		<DIV class="down-triangle"></DIV>
+		<DIV style="display:none" class="fill-me"></DIV>
+		<DIV style="height: 4px; /*background: conic-gradient(from 45deg, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff, #000, #fff);*/" class="bottom"></DIV>
+  	  </DIV>
+	</DIV>
+  </BODY>
+</HTML>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<HTML>
+	<HEAD>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<TITLE>Learn Binary</TITLE>
+		<!--
+		  1em = 9.611+2*3.194 px = 16px
+		  min block width = 107.986+2*3.194 px = 7.148375em
+		  min instructions width = 151.861 px = ‭9.4913125‬em
+		  min block column width = min block width + 2 * 0.4em = 10.2913125em
+		  ideal padding = 0.5em
+		  min total width = (min instructions width) + 2*(min block column width) + 4 * (ideal padding) = (9.4913125‬ + 2*10.2913125 + 4*0.5)em = 32.0739375em 
+		  So if the window is less than 32em wide, we can't comfortably fit all three pieces side by side.  We should put the instructions on top.
+		-->
+		<STYLE>
+			body {
+				display: grid;
+				grid-gap: 0.5em;
+				grid-template-areas: 'instructions source solution';
+				width: 100vw;
+				height: 100vh;
+				background: #eee;
+				overflow: hidden;
+				margin: 0;
+				padding: 0.5em;
+				box-sizing: border-box;
+			}
+			#instructions {
+				grid-area: instructions;
+				min-width: 9.5em;
+				display: flex;
+				flex-direction: column;
+				align-items: stretch;
+			}
+			#instructions div {
+				text-align: center;
+			}
+			#source_container,#solution_container {
+				border-width: 0.4em;
+				border-style: solid;
+				border-color: #ccc #fff #fff #ccc;
+				min-width: 7.15em;
+				display: flex;
+				flex-direction: column-reverse;
+				align-items: stretch;
+				overflow: hidden;
+			}
+			#source_container {
+				grid-area: source;
+			}
+			#solution_container {
+				grid-area: solution;
+			}
+			.block {
+				color: white;
+				background: #00F;
+				text-align: right;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				box-sizing: border-box;
+				border-width: 0.2em;
+				border-style: solid;
+				border-color: #66F #009 #009 #66F;
+			}
+			.summary {
+				text-align: right;
+				padding: 0 0.2em;
+			}
+			@media (max-width: 32em)
+			{
+				body {
+					/* background-color: pink; */
+					grid-template-areas: 'instructions instructions' 'source solution';
+					grid-template-rows: 0fr 2fr;
+					/*flex-flow: column wrap;*/
+				}
+			}
+		</STYLE>
+		<SCRIPT>
+			var sourceContainer, solutionContainer;
+			function initOnce()
+			{
+				sourceContainer = document.getElementById("source_container");
+				solutionContainer = document.getElementById("solution_container");
+				setBinaryDigits();
+			}
+
+			// Must be 0 initially because we need to know how many blocks are currently
+			// on the screen.  And that is 0.
+			var binaryDigits = 0;
+			
+			function maxValue()
+			{
+				return (1<<binaryDigits) - 1;
+			}
+			
+			function setBinaryDigits()
+			{
+				previousDigitCount = binaryDigits;
+				binaryDigits = Number(document.getElementById("range_slider").value);
+				Array.from(document.querySelectorAll(".block")).forEach(function(element)
+				{
+					if (Number(element.dataset.size) >= (1<<binaryDigits))
+						// Delete this.
+						element.parentNode.removeChild(element);
+					else
+						// Keep this, but change the number of digits that we display.
+						updateBlockText(element);
+				});
+				// Add some new blocks.  It would have been slightly easer to delete
+				// everything and recreate what we need.  But this keeps some items
+				// on the left and others on the right.
+				for (var i = previousDigitCount; i < binaryDigits; i++)
+					addBlockTo(makeBlock(1<<i), sourceContainer);
+				document.getElementById("range_as_text").innerText = "Between 0 and " + maxValue() + ".";
+				// This is required when we delete blocks.  We get it automatically
+				// when we add blocks.
+				updateSummaries();
+				checkGoal();
+			}
+			function formatBinary(n)
+			{
+				n = Number(n);
+				var result = n + " = ";
+				const asBinary = n.toString(2);
+				result += "0".repeat(binaryDigits - asBinary.length);
+				result += asBinary;
+				return result;
+			}
+			var beingDragged;
+			function updateBlockText(block)
+			{
+				block.innerText = formatBinary(block.dataset.size);
+			}
+			function makeBlock(size)
+			{
+				const result = document.createElement("div");
+				result.className = "block";
+				result.style.height = size + "em";
+				result.dataset.size = size;
+				updateBlockText(result);
+				result.draggable = true;
+				result.addEventListener("dragstart", () => beingDragged = result);
+				result.addEventListener("dblclick", function()
+				{   // Whichever container it is in, move it to the other container.
+					if (result.parentNode == sourceContainer)
+						addBlockTo(result, solutionContainer);
+					else
+						addBlockTo(result, sourceContainer);
+				});
+				return result;
+			}
+			function addBlockTo(block, container)
+			{
+				if (block.parent == container)
+					return;
+				const newSize = Number(block.dataset.size);
+				const children = container.childNodes;
+				var found = false;
+				for (var i = 0; i < children.length; i++)
+				{
+					const existingBlock = children[i];
+					if (existingBlock.className != "block") continue;
+					const existingSize = Number(existingBlock.dataset.size);
+					if (newSize > existingSize)
+					{
+						container.insertBefore(block, existingBlock);
+						found = true;
+						break;
+					}
+				}
+				if (!found)
+					container.appendChild(block);
+				updateSummaries();
+			}
+			function updateSummary(container)
+			{
+				var summary;
+				var count = 0;
+				const children = container.children;
+				for (var i = 0; i < container.children.length; i++)
+				{
+					const element = children[i];
+					if (element.className == "summary")
+						summary = element;
+					else
+						count += Number(element.dataset.size);
+				}
+				summary.innerText = formatBinary(count);
+				return count;
+			}
+			
+			var solutionCount = 0;
+			function updateSummaries()
+			{
+				updateSummary(sourceContainer);
+				solutionCount = updateSummary(solutionContainer);
+				checkSuccess();
+			}
+			
+			function allowDrop(ev) {
+				if (beingDragged && (ev.currentTarget != beingDragged.parentElement))
+					ev.preventDefault();
+			}
+			function drop(ev) {
+				ev.preventDefault();
+				addBlockTo(beingDragged, ev.currentTarget);
+			}
+			
+			var goal = 1000000000;
+			function checkGoal() {
+				if (goal > maxValue())
+					forceUpdateGoal();
+			}
+			function forceUpdateGoal() {
+				const previousGoal = goal;
+				while (goal == previousGoal) {
+					goal = Math.floor(Math.random() * (maxValue() + 1));
+				}
+				document.getElementById("goal_as_text").innerHTML = 
+					"Drag the blocks to make the right side add up to <B>" + goal + "</B>.";
+				checkSuccess();
+			}
+			function checkSuccess() {
+				const successElement = document.getElementById("success");
+				const success = solutionCount == goal;
+				successElement.style.display = success?"":"none";					
+			}
+		</SCRIPT>
+	</HEAD>
+	<BODY onload="initOnce()">
+		<DIV ID="instructions">
+		    <INPUT TYPE="RANGE" NAME="range_slider" ID="range_slider" MIN="1" MAX="8" VALUE="4" ONCHANGE="setBinaryDigits()">
+			<DIV ID="range_as_text"></DIV>
+			<BR>
+			<DIV ID="goal_as_text"></DIV>
+			<DIV>Or double click on a block to move it.</DIV>		
+			<DIV ID="success"><BR><B>Success!</B>&nbsp; <BUTTON ONCLICK="forceUpdateGoal()">Try Again</BUTTON></DIV>
+		</DIV>
+		<DIV ID="source_container" ondrop="drop(event)" ondragover="allowDrop(event)">
+			<DIV class="summary"></DIV>
+		</DIV>
+		<DIV ID="solution_container" ondrop="drop(event)" ondragover="allowDrop(event)">
+			<DIV class="summary"></DIV>
+		</DIV>
+	</BODY>
+</HTML>https://www.trade-ideas.com/home/phil/Triangles/SierpińskiAlbum.html

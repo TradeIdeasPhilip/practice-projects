@@ -1,0 +1,111 @@
+body {
+	background: cyan;
+	--item-size: 2.5em;
+	--board-width: 40;
+	--board-height: 30;
+}
+
+.current-direction {
+	font-style: italic;
+	font-weight: bold;
+}
+
+#board {
+	border-width: 0.5em;
+	border-style: solid;
+	border-color: black;
+	width: calc(var(--board-width) * var(--item-size));
+	height: calc(var(--board-height) * var(--item-size));
+	background: url("https://thumbs-prod.si-cdn.com/rjR9dBkPzbx3tV22Yhi-aA4aCRw=/800x600/filters:no_upscale()/https://public-media.si-cdn.com/filer/a3/3f/a33f8ee0-bfee-4cce-9a13-f9388c5323c0/42-55375529.jpg")
+}
+
+.std-size {
+		width: var(--item-size);
+		height: var(--item-size);
+		display: inline-block;
+}
+
+[data-shape="vertical"] {
+	background: linear-gradient(to right, #0004 0%, #0000 25%, #FFF4 50%, #0000 75%, #0004 100%), green;	
+}
+
+[data-shape="horizontal"] {
+	background: linear-gradient(to bottom, #0004 0%, #0000 25%, #FFF4 50%, #0000 75%, #0004 100%), green;	
+}
+
+[data-shape="top-left"] {
+	background: radial-gradient(at 100% 100%, #0004 0%, #0000 17.5%, #FFF4 35%, #0000 52.5%, #0004 70%, #0000 70%), radial-gradient(at 100% 100%, green 0% 70%, #0000 70%);
+}
+
+[data-shape="bottom-right"] {
+	background: radial-gradient(at 0% 0%, #0004 0%, #0000 17.5%, #FFF4 35%, #0000 52.5%, #0004 70%, #0000 70%), radial-gradient(at 0% 0%, green 0% 70%, #0000 70%);
+}
+
+[data-shape="top-right"] {
+	background: radial-gradient(at 0% 100%, #0004 0%, #0000 17.5%, #FFF4 35%, #0000 52.5%, #0004 70%, #0000 70%), radial-gradient(at 0% 100%, green 0% 70%, #0000 70%);
+}
+
+[data-shape="bottom-left"] {
+	background: radial-gradient(at 100% 0%, #0004 0%, #0000 17.5%, #FFF4 35%, #0000 52.5%, #0004 70%, #0000 70%), radial-gradient(at 100% 0%, green 0% 70%, #0000 70%);
+}
+
+[data-shape^="end-cap-"] {
+	background: radial-gradient(#FFF4 0%, #0000 35.5%, #0004 71%, #0000 71%), radial-gradient(green 0% 71%, #0000 71%);
+	position: relative;
+}
+
+[data-shape="end-cap-right"]::after {
+	width: 50%;
+	height: 100%;
+	position: absolute;
+	left: 0;
+	background: linear-gradient(to bottom, #0004 0%, #0000 25%, #FFF4 50%, #0000 75%, #0004 100%), green;
+	content: '';
+}
+
+[data-shape="end-cap-top"]::after {
+	width: 100%;
+	height: 50%;
+	position: absolute;
+	bottom: 0;
+	background: linear-gradient(to right, #0004 0%, #0000 25%, #FFF4 50%, #0000 75%, #0004 100%), green;
+	content: '';
+}
+
+[data-shape="end-cap-bottom"]::after {
+	width: 100%;
+	height: 50%;
+	position: absolute;
+	top: 0;
+	background: linear-gradient(to right, #0004 0%, #0000 25%, #FFF4 50%, #0000 75%, #0004 100%), green;
+	content: '';
+}
+
+[data-shape="end-cap-left"]::after {
+	width: 50%;
+	height: 100%;
+	position: absolute;
+	right: 0;
+	background: linear-gradient(to bottom, #0004 0%, #0000 25%, #FFF4 50%, #0000 75%, #0004 100%), green;
+	content: '';
+}
+
+[data-shape="target"] {
+	background: radial-gradient(#FFF4 0%, #0000 35.5%, #0004 71%, #0000 71%), radial-gradient(red 0% 71%, #0000 71%);
+}
+
+/*
+.vertical {
+	background: linear-gradient(to right, #FFF0 0%, #FFF4 25%, #FFF0 50%, #0004 100%), green;
+}
+.horizontal {
+	background: linear-gradient(to bottom, #FFF0 0%, #FFF4 25%, #FFF0 50%, #0004 100%), green;
+}
+.top-left {
+	background: radial-gradient(at 100% 100%, #0004 0%, #0000 35%, #FFF4 52.5%, #FFF0 70%), radial-gradient(at 100% 100%, green 0% 70%, #0000 70%);
+}
+.bottom-right {
+	background: radial-gradient(at 0% 0%, #FFF0 0%, #FFF4 17.5%, #0000 35%, #0004 70%, #0000 70%), radial-gradient(at 0% 0%, green 0% 70%, #0000 70%);
+}
+*/
+

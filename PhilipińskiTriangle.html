@@ -1,0 +1,296 @@
+<HTML>
+	<HEAD>
+		<TITLE>Philipiński Triangle</TITLE>	
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<STYLE>
+			body {
+				padding: 0;
+				margin: 0;
+				position: relative;
+				}
+			#canvas {
+				position: absolute;
+				left: 0;
+				right: 0;
+				width: 100vw;
+				height: 100vh;
+			}
+			#input_container {
+				position: relative;
+				z-index: 2;
+				width: 100%;
+			}
+			#input_container td {
+				text-align: center;
+			}
+			#input_container input[type="range"] {
+				width: 30vw;
+				margin: 0;
+			}
+			#input_container div {
+				font-size: 200%;
+				text-shadow: 2px 2px 8px #FFFFFF, 2px -2px 8px #FFFFFF, -2px 2px 8px #FFFFFF, -2px -2px 8px #FFFFFF;
+				text-align: center;
+			}
+		</STYLE>
+		<SCRIPT>
+			var canvas;
+			var context;
+			var sleepTimeDiv;
+			var sleepRange;
+			var splitRange;
+			var slitDiv;
+			var splitChance;
+			var minSizeRange;
+			var minSizeDiv;
+			var minSize;
+			const FOREVER = "FOREVER";
+			const TIMER_FIRED = "TIMER_FIRED";
+			const USER_CHANGE = "USER_CHANGE";
+			const USER_PAUSED = "USER_PAUSED";
+			const sleepTimes = [250, 500, 1000, 1500, 2000, 3000, 4000, 6000, 10000, FOREVER];
+			function initOnce()
+			{
+				canvas = document.getElementById("canvas");
+				context = canvas.getContext("2d");
+
+				sleepRange = document.getElementById("sleep_range");
+				sleepTimeDiv = document.getElementById("sleep_time_div");
+				sleepRange.max = sleepTimes.length - 1;
+				sleepRange.value = 5;
+				sleepTimeChanged();
+				
+				splitRange = document.getElementById("split_range");
+				splitDiv =  document.getElementById("split_div");
+				splitChanged();
+
+				minSizeRange = document.getElementById("min_size_range");
+				minSizeDiv =  document.getElementById("min_size_div");
+				minSizeChanged();
+
+				mainLoop();
+				startTriangle(false);
+			}
+			var initialTriangle;
+			async function mainLoop()
+			{
+				var reason = "INITIAL";
+				while (true)
+				{
+					try
+					{	// If we got here beacuse the user selected pause, do nothing.  Wait for the next event.  Otherwise, redraw the triangle.  If we got here because the user changed something other than the period, ask startTriangle() to draw the new triangle in the exact same place as the old one.  Otherwise (e.g. the timer went off, or we simulated the timer going off because the user requested a smaller period) draw the triangle in a random place.
+						if (reason != USER_PAUSED)
+							startTriangle(reason == USER_CHANGE);
+					}
+					catch (ex)
+					{
+						console.log(ex);
+					}
+					reason = await sleep(getSleepTime());
+				}
+			}
+			function areaOfTriangle(a, b, c)
+			{	// Formula for the area of a triangle from 3 ponts:  
+				// https://www.mathopenref.com/coordtrianglearea.html
+				if (arguments.length == 1)
+					[a, b, c] = a;
+				return Math.abs(a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) / 2;
+			}
+			function getColors()
+			{
+				c1 = "rgb(" + Math.random()*50 + "%, " + Math.random()*50 + "%, " + Math.random()*50 + "%)";
+				c2 = "rgb(" + (Math.random()*50 + 50) + "%, " + (Math.random()*50 + 50) + "%, " + (Math.random()*50 + 50) + "%)";
+				if (Math.random() < 0.5)
+					return {background: c1, foreground: c2};
+				else
+					return {background: c2, foreground: c1};
+			}
+			function startTriangle(preserveInitialTriangle)
+			{
+				// Make the size of the bitmap match the size of the element.
+				canvas.width = canvas.offsetWidth;
+				canvas.height = canvas.offsetHeight;
+				const colors = getColors();
+				context.fillStyle = colors.background;
+				context.fillRect(0, 0, canvas.width, canvas.height);
+				context.fillStyle = colors.foreground;
+				if (!(preserveInitialTriangle && initialTriangle))
+				{
+					const possiblePoints = [];
+					for (var i = 0; i < 12; i++)
+					{
+						possiblePoints.push({x: Math.random() * canvas.width, y: Math.random() * canvas.height});
+					}
+					var largestArea = -1;
+					for (var i = 0; i < possiblePoints.length - 2; i++)
+						for (var j = i+1; j < possiblePoints.length - 1; j++)
+							for (var k = j+1; k < possiblePoints.length; k++)
+							{	// Formula for the area of a triangle from 3 ponts:  
+								// https://www.mathopenref.com/coordtrianglearea.html
+								const a = possiblePoints[i];
+								const b = possiblePoints[j];
+								const c = possiblePoints[k];
+								const area = areaOfTriangle(a, b, c);
+								if (area > largestArea)
+								{
+									largestArea = area;
+									initialTriangle = [a, b, c];
+								} 
+							}
+				}
+				doTriangle(initialTriangle);
+			}
+			function makeTrianglePath(triangle)
+			{
+				context.beginPath()
+				context.moveTo(triangle[0].x, triangle[0].y);
+				context.lineTo(triangle[1].x, triangle[1].y);
+				context.lineTo(triangle[2].x, triangle[2].y);
+				context.closePath();
+			}
+			function fillTriangle(triangle)
+			{
+				makeTrianglePath(triangle);
+				context.fill();
+			}
+			function midPoint(a, b, ratio)
+			{
+				const mid1 = (a, b, ratio) => (a + (b-a) * ratio);
+				return {x: mid1(a.x, b.x, ratio), y: mid1(a.y, b.y, ratio) };
+			}
+			function tooSmall(triangle, scaledDownBy = 1)
+			{	// TODO See the previous work on the perpendicular bisector.
+				return areaOfTriangle(triangle) / (scaledDownBy*scaledDownBy) < minSize;
+			}
+			function doTriangle(triangle)
+			{
+				if (tooSmall(triangle))
+					return;
+				var bottomRowCount = 2;
+				while (true)
+				{
+					if (Math.random() >= splitChance)
+						break;
+					const bigger = bottomRowCount + 1;
+					if (tooSmall(triangle, bigger))
+						break;
+					bottomRowCount = bigger;
+				}
+				switch (Math.floor(Math.random()*3))
+				{
+					case 1:
+						triangle.push(triangle.shift());
+						// fall through!
+					case 2:
+						triangle.push(triangle.shift());
+				}
+				// "top", "left", and "right" are arbitrary.  The triangle could be
+				// orientend any which way.  I'm just trying to draw a clear picture
+				// in my head.  The idea is that we always draw two rows.  The top
+				// row contains one triangle.  The second row contains 2 or more
+				// triangles.  (Not counting the upside down triangles that are the
+				// empty spaces.)  midLeftPoint to midRightPoint refers to the
+				// horizontal line segment seperating the top and bottom rows.
+				const topPoint = triangle[0];
+				const leftPoint = triangle[1];
+				const rightPoint = triangle[2];
+				const downRatio = (bottomRowCount - 1) / bottomRowCount;
+				const midLeftPoint = midPoint(topPoint, leftPoint, downRatio);
+				const midRightPoint = midPoint(topPoint, rightPoint, downRatio);
+				// We draw the triangles in the normal order that you read English.
+				// The triangle on the top row is first...
+				doTriangle([topPoint, midLeftPoint, midRightPoint]);
+				// Then draw the triangles on the bottom row going left to right.
+				// This includes the upside down ones that we fill in completely
+				// And the right side up ones that we break into smaller pieces.
+				const midRatio = 1 / (bottomRowCount - 1);
+				const bottomRatio = 1 / bottomRowCount;
+				for (var i = 0; i < bottomRowCount; i++)
+				{
+					doTriangle([midPoint(midLeftPoint, midRightPoint, midRatio * i), midPoint(leftPoint, rightPoint, bottomRatio * i), midPoint(leftPoint, rightPoint, bottomRatio * (i + 1))]);
+					if (i > 0)
+						fillTriangle([midPoint(midLeftPoint, midRightPoint, midRatio * (i - 1)), midPoint(midLeftPoint, midRightPoint, midRatio * i), midPoint(leftPoint, rightPoint, bottomRatio * i)]);
+				}
+			}
+			var currentResolve = function() {};
+			function sleep(ms) 
+			{
+				return new Promise(resolve => 
+				{
+					currentResolve = resolve;
+					if (ms != FOREVER)
+						setTimeout(() => resolve(TIMER_FIRED), ms);
+				});
+			}
+			function getSleepTime()
+			{
+				return sleepTimes[sleepRange.value];
+			}
+			var previousSleepTime;
+			function sleepTimeChanged()
+			{
+				const ms = getSleepTime();
+				if (ms == FOREVER)
+				{	// Send USER_PAUSED now rather than waiting for the old timer to go off.
+					currentResolve(USER_PAUSED);
+					sleepTimeDiv.innerText = "Pause";
+				}
+				else
+				{
+					if ((typeof previousSleepTime != "number") || (previousSleepTime > ms))
+						// You moved the slider to the left.  You requested that
+						// the program redraw more often.  So we ask for a redraw
+						// immeidately.  What if you were redrawing once per minute,
+						// and you changed it to be once per second?  You wouldn't
+						// want to wait for the end of the original minute.
+						currentResolve(TIMER_FIRED);
+					if (ms <= 1000)
+						sleepTimeDiv.innerText = ms + "ms";
+					else
+						sleepTimeDiv.innerText = (ms / 1000) + "s";
+				}
+				previousSleepTime = ms;
+			}
+			function splitChanged()
+			{
+				splitChance = splitRange.value / splitRange.max;
+				splitDiv.innerText = (splitRange.value * 100 / splitRange.max) + "%";
+				currentResolve(USER_CHANGE);
+			}
+			function minSizeChanged()
+			{
+				const value = minSizeRange.value;
+				minSize = [40, 90, 160, 250, 360, 490, 640][value];
+				minSizeDiv.innerText = ["Smallest", "Smaller", "Small", "Medium", "Big", "Bigger", "Biggest"][value];
+				currentResolve(USER_CHANGE);
+			}
+		</SCRIPT>
+	</HEAD>
+	<BODY ONLOAD="initOnce()">
+		<CANVAS ID="canvas"></CANVAS>
+		<TABLE ID="input_container">
+			<TR>
+				<TD>
+					<INPUT TYPE="range" ID="sleep_range" ONINPUT="sleepTimeChanged()" MIN="0"></INPUT>
+				</TD>
+				<TD>
+					<INPUT TYPE="range" ID="split_range" ONINPUT="splitChanged()" MIN="0" MAX="100" VALUE="19"></INPUT>
+				</TD>
+				<TD>
+					<INPUT TYPE="range" ID="min_size_range" ONINPUT="minSizeChanged()" MIN="0" MAX="6" VALUE="2"></INPUT>
+				</TD>
+			</TR>
+			<TR>
+				<TD>
+					<DIV ID="sleep_time_div"></DIV>
+				</TD>
+				<TD>
+					<DIV ID="split_div"></DIV>
+				</TD>
+				<TD>
+					<DIV ID="min_size_div"></DIV>
+				</TD>
+			</TR>
+		</TABLE>
+	</BODY>
+</HTML>
