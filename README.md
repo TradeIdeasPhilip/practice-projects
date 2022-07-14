@@ -15,7 +15,7 @@ No promises!
   * [Second version](https://tradeideasphilip.github.io/practice-projects/triangle-doodles/MoreColors.html)
   * [Third version](https://tradeideasphilip.github.io/practice-projects/triangle-doodles/3Colors.html)
 * Sierpiński Triangle [Photo Album](https://tradeideasphilip.github.io/practice-projects/album/SierpińskiAlbum.html) — If you have three kids this would be a great way to make a photo album. ⭐
-* DOS Themed CSS — I found this on the web somewhere.  I don't know what to do with this, but I gotta do something!
+* [DOS Themed CSS](https://tradeideasphilip.github.io/practice-projects/dos/DOS.html) — I found this on the web somewhere.  I don't know what to do with this, but I gotta do something!
 * N-Queens — This is a classic problem.
   * [First version](https://tradeideasphilip.github.io/practice-projects/n-queens/NQueens.html)
   * [Later version](https://tradeideasphilip.github.io/practice-projects/n-queens/NQueens4.html) ⭐
