@@ -19,6 +19,7 @@ No promises!
 * N-Queens — This is a classic problem.
   * [First version](https://tradeideasphilip.github.io/practice-projects/n-queens/NQueens.html)
   * [Later version](https://tradeideasphilip.github.io/practice-projects/n-queens/NQueens4.html) ⭐
+  * [My competition](https://youtu.be/R8bM6pxlrLY)
 * [Snake](https://tradeideasphilip.github.io/practice-projects/snake/Snake.html) — Another classic.  I first learned this in BASIC on a TI 99/4.
 * [3d text](https://tradeideasphilip.github.io/practice-projects/3d.html) — You need some imagination to see these.  I had much better luck with [ThreeJS](https://github.com/TradeIdeasPhilip/bounce-3d).
 * [Binary Blocks](https://tradeideasphilip.github.io/practice-projects/BinaryBlocks.html) — Teach binary to kids.  Teach me drag and drop.
