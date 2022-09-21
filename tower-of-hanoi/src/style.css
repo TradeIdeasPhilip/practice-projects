@@ -1,0 +1,23 @@
+body {
+  padding: 0;
+  margin: 0;
+  height: 100vh;
+  width: 100vw;
+}
+
+.disc {
+  position: absolute;
+  height: 0;
+  border: solid black 0.5em;
+  border-radius: 0.4em;
+  /*
+  border-top-left-radius: 0.75em;
+  border-top-right-radius: 0.75em;
+  */
+}
+
+#buttons {
+  display: flex;
+  gap: 0.5em;
+  padding: 0.5em;
+}
