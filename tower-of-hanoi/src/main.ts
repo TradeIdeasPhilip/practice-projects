@@ -15,6 +15,9 @@ class Drawing {
       const result = document.createElement("div");
       result.classList.add("disc");
       result.style.width = `${index + 2}em`;
+      if (index == 0) {
+        result.style.borderColor = "blue";
+      } 
       document.body.appendChild(result);
       return result;
     });
@@ -116,24 +119,59 @@ class Game {
     this.#positions[to].unshift(indexToMove);
     await this.#drawing.move(indexToMove, to, y);
   }
+  smallestIsOnThisPeg(x : number) {
+    return this.#positions[x][0] === 0;
+  }
 }
 
 let game = new Game(7);
 
-const buttonsDiv = getById("buttons", HTMLDivElement);
-
-function drawButtons() {
-  buttonsDiv.innerText = "";
-  game.allLegalMoves().forEach(({ to, from }) => {
-    const button = document.createElement("button");
-    button.innerText = `${from} » ${to}`;
-    button.addEventListener("click", async () => {
-      buttonsDiv.querySelectorAll("button").forEach((b) => (b.disabled = true));
-      await game.move(from, to);
-      drawButtons();
+class ButtonInfo {
+  readonly #button : HTMLButtonElement;
+  readonly #div : HTMLDivElement;
+  #action : undefined | (() => Promise<void>); 
+  constructor(description : string, private readonly leftIndex : number, private readonly rightIndex : number) {
+    this.#button = getById(description, HTMLButtonElement);
+    this.#button.addEventListener("click", async() =>{
+      document.querySelectorAll("button").forEach(button => button.disabled = true);
+      await this.#action!();
+      updateButtons();
     });
-    buttonsDiv.appendChild(button);
-  });
+    this.#div = getById(description+"Div", HTMLDivElement);
+    this.update();
+  }
+  update() {
+    /**
+     * If this button would move the smallest disc, make it bold.
+     */
+    let makeButtonBold = false;
+    if (game.canMove(this.leftIndex, this.rightIndex)) {
+      this.#button.disabled = false;
+      this.#div.innerText = "> > >";
+      this.#action = () => game.move(this.leftIndex, this.rightIndex);
+      if (game.smallestIsOnThisPeg(this.leftIndex)) {
+        makeButtonBold = true;
+      }
+    } else if (game.canMove(this.rightIndex, this.leftIndex)) {
+      this.#button.disabled = false;
+      this.#div.innerText = "< < <";
+      this.#action = () => game.move(this.rightIndex, this.leftIndex);
+      if (game.smallestIsOnThisPeg(this.rightIndex)) {
+        makeButtonBold = true;
+      }
+    } else {
+      this.#button.disabled = true;
+      this.#div.innerText = "⨉";
+      this.#action = undefined;
+    }
+    this.#button.classList[makeButtonBold?"add":"remove"]("smallest");
+  }
 }
 
-drawButtons();
+const buttons = [new ButtonInfo("leftCenter", 0, 1), new ButtonInfo("centerRight", 1, 2), new ButtonInfo("leftRight", 0, 2)];
+
+function updateButtons() {
+  buttons.forEach(buttonInfo => buttonInfo.update());
+}
+
+updateButtons();

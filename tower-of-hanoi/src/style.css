@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap');
+
 body {
   padding: 0;
   margin: 0;
@@ -17,7 +19,34 @@ body {
 }
 
 #buttons {
-  display: flex;
+  display: grid;
   gap: 0.5em;
   padding: 0.5em;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-areas:
+  "leftCenter leftCenter ."
+  ". centerRight centerRight"
+  "leftRight leftRight leftRight"
+}
+
+button {
+  font-family: 'Source Code Pro', monospace;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+}
+
+#leftCenter {
+  grid-area: leftCenter;
+}
+#centerRight {
+  grid-area: centerRight;
+}
+#leftRight {
+  grid-area: leftRight;
+}
+
+.smallest {
+  font-weight: bold;
+  color:blue;
 }
